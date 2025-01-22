@@ -1,0 +1,8 @@
+*.pdf
+*.png
+*.mp4
+plots/
+tmp/
+venv/
+.vscode/
+.history/
