@@ -4,5 +4,6 @@
 plots/
 tmp/
 venv/
+.venv/
 .vscode/
 .history/
