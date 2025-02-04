@@ -32,7 +32,6 @@ tstpot(r,theta) = (cos(5r/π)+r) * cos(theta)
 tstgrid = PolarGrid(2,collect(range(0.01,2,60)),collect(range(0.0,2π,81)[1:end-1]),mbpolar)
 ps = getPoints(tstgrid)
 
-getNeighbors(tstgrid,ps[112])
 
 ts = gradDescent(tstgrid)
 
@@ -44,14 +43,16 @@ GLMakie.activate!()
 
 f1 = Figure(size=(2000,1500), fontsize=48)
 ax = PolarAxis(f1[1,1], title = "Polar coordinates")
+ax2 = PolarAxis(f1[1,2], title = "Polar coordinates")
+
 p1 = voronoiplot!(ax,collect(keys(ts.gridpoints)),colorrange=(-150,75),markersize = 0,highclip = :transparent,colormap = :lipari)
 
 for minimum in ts.minima
     tmin = filter(x -> ts.gridpoints[x][2] == minimum, collect(keys(ts.gridpoints)))
-    scatter!(ax,[t.translation.polar for t in tmin], [t.translation.radius for t in tmin],markersize = 8)
+    scatter!(ax2,[t.translation.polar for t in tmin], [t.translation.radius for t in tmin],markersize = 8)
 end
 
-p2 = scatter!(ax,[t.translation.polar for t in ts.minima], [t.translation.radius for t in ts.minima], color = :red)
+p2 = scatter!(ax2,[t.translation.polar for t in ts.minima], [t.translation.radius for t in ts.minima], color = :red)
 
 
-Colorbar(f1[1,2],p1)
+Colorbar(f1[1,3],p1)
