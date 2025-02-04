@@ -1,46 +1,53 @@
+using SparseArrays
+
 abstract type Grid end
 
 abstract type Point end
 
-struct Spherical
+abstract type Position end
+
+struct Spherical <: Position
     radius::Number
     azimuth::Number
     polar::Number
 end
 
-struct Polar
+struct Polar <: Position
     radius::Number
     polar::Number
 end
 
-struct Cartesian2D
-    radius::Number
-    polar::Number
+struct Cartesian2D <: Position
+    x::Number
+    y::Number
 end
 
-
+struct Cartesian3D <: Position
+    x::Number
+    y::Number
+    z::Number
+end
 
 struct Point4D{T <: Number} <: Point
     rotation::Tuple{T,T,T,T}
-    translation::Spherical
+    translation::Position
     energy::Number
 end
 
 struct Point3D <: Point
-    translation::Spherical
+    translation::Position
     energy::Number
 end
 
 struct Point2D <: Point
-    translation::Polar
+    translation::Position
     energy::Number
 end
 
-mutable struct Basin{T <: Point}
-    const grid::Grid
-    minima::Vector{T}
-    # Key is the point, the tuple contains next point and reached minima
-    gridpoints::Dict{T,Tuple{T,T}} 
+struct PointGrid <: Grid 
+    dim::Number
+    points::Vector{Point}
+    distances::AbstractMatrix{Number}
 end
 
 struct PolarGrid <: Grid
@@ -48,6 +55,13 @@ struct PolarGrid <: Grid
     rs::Vector{Number}
     thetas::Vector{Number}
     potential::Function
+end
+
+mutable struct Basin{T <: Point}
+    const grid::Grid
+    minima::Vector{T}
+    # Key is the point, the tuple contains next point and reached minima
+    gridpoints::Dict{T,Tuple{T,T}} 
 end
 
 function distance(t1::Spherical,t2::Spherical)
@@ -61,11 +75,22 @@ end
 distance(t1::Point2D,t2::Point2D) = distance(t1.translation,t2.translation)
 
 
+function getPoints(grid::PointGrid)
+    return grid.points
+end
+
+function getNeighbors(grid::PointGrid,point::Point)
+    findfirst(point .== grid.points)
+    distances = grid.distances[findfirst,:]
+    args_neighbor = .!iszero.(distances)
+    return grid.points[args_neighbor], distances[args_neighbor]
+end
+
 function getPoints(grid::PolarGrid)
     return [Point2D(Polar(r,theta),grid.potential(r,theta)) for r in grid.rs, theta in grid.thetas]
 end
 
-function getNeighbors(grid::PolarGrid,point::Point2D)
+function getNeighbors(grid::PolarGrid,point::Point)
     @assert point.translation.radius in grid.rs "Provided point not in given radial steps"
     @assert point.translation.polar in grid.thetas "Provided angle (polar) not in given angular steps"
 
@@ -83,9 +108,13 @@ function getNeighbors(grid::PolarGrid,point::Point2D)
     angular_neighbors = [mod1(angular_arg-1,length(grid.thetas)), angular_arg,  mod1(angular_arg+1,length(grid.thetas))]
 
     neighbors = [Point2D(Polar(r,theta),grid.potential(r,theta)) for r in grid.rs[radial_neighbors], theta in grid.thetas[angular_neighbors]]
-    return neighbors[neighbors .!= Ref(point)]
+    withoutSelf = findall(x -> x != point,vec(neighbors))
+    return neighbors[withoutSelf], [distance(n,point) for n in neighbors][withoutSelf]
 end
 
+function getNeighbors(grid::Grid,point::Point)
+    findfirst
+end
 
 function gradDescent(grid::Grid)
     minima = Point[]
@@ -101,8 +130,8 @@ function gradDescent(grid::Grid)
             trajectory = Tuple{Point,Point}[]
             return 0
         end
-        neighbors = getNeighbors(grid,point)
-        grads = [(n.energy - point.energy) / distance(n,point) for n in neighbors] 
+        neighbors, distances = getNeighbors(grid,point)
+        grads = [(neighbors[i].energy - point.energy) / d for (i,d) in enumerate(distances)] 
         min = argmin(grads)
         grads[min] == 0 && @warn "Energy difference is exactly zero"
         if grads[min] >= 0
