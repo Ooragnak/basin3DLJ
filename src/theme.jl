@@ -4,6 +4,8 @@ using CairoMakie
 using ColorSchemes
 using LaTeXStrings
 using Printf
+using BenchmarkTools
+using Base.Threads
 
 simpleLaTeX() = Theme(
     fontsize = 36,
