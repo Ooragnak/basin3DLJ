@@ -33,12 +33,12 @@ struct Point4D{T <: Number} <: Point
     energy::Number
 end
 
-struct Point3D{T <: Number} <: Point
+struct Point3D <: Point
     translation::Spherical
     energy::Number
 end
 
-struct Point2D{T <: Number} <: Point
+struct Point2D <: Point
     translation::Polar
     energy::Number
 end
@@ -50,6 +50,36 @@ mutable struct Basin{T <: Point}
     gridpoints::Dict{T,Tuple{T,T}} 
 end
 
+struct PolarGrid <: Grid
+    dim::Number
+    rs::Vector{Number}
+    thetas::Vector{Number}
+    potential::Function
+end
+
+function getPoints(grid::PolarGrid)
+    return [Point2D(Polar(r,theta),grid.potential(r,theta)) for r in grid.rs, theta in grid.thetas]
+end
+
+function getNeighbors(grid::PolarGrid,point::Point2D)
+    @assert point.translation.radius in grid.rs "Provided point not in given radial steps"
+    @assert point.translation.polar in grid.thetas "Provided angle (polar) not in given angular steps"
+
+    radial_arg = findfirst(point.translation.radius .== grid.rs)
+
+    if radial_arg == 1
+        radial_neighbors = [2]
+    elseif radial_arg == length(rs)
+        radial_neighbors = [length(rs)-1]
+    else 
+        radial_neighbors = [radial_arg-1, radial_arg+1]
+    end
+
+    angular_arg = findfirst(point.translation.polar .== grid.thetas)
+    angular_neighbors = [mod1(radial_arg-1,length(grid.thetas)), mod1(radial_arg+1,length(grid.thetas))]
+
+    return [Point2D(Polar(r,theta),potential(r,theta)) for r in grid.rs[radial_neighbors], theta in grid.thetas[angular_neighbors]]
+end
 
 
 function gradDescent(grid::Grid)
@@ -82,8 +112,8 @@ function gradDescent(grid::Grid)
         end
     end
 
-    for p in grid.points
+    for p in getPoints(grid)
         getStep(p) 
     end
-
+    return Basin(grid,minima,gridpoints)
 end
