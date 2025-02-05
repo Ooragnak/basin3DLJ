@@ -56,3 +56,5 @@ p2 = scatter!(ax2,[t.translation.polar for t in ts.minima], [t.translation.radiu
 
 
 Colorbar(f1[1,3],p1)
+
+display(f1)
