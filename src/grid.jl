@@ -1,4 +1,5 @@
 using SparseArrays
+using LinearAlgebra
 
 abstract type Grid end
 
@@ -7,53 +8,53 @@ abstract type Point end
 abstract type Position end
 
 struct Spherical <: Position
-    radius::Number
-    azimuth::Number
-    polar::Number
+    radius::Float64
+    azimuth::Float64
+    polar::Float64
 end
 
 struct Polar <: Position
-    radius::Number
-    polar::Number
+    radius::Float64
+    polar::Float64
 end
 
 struct Cartesian2D <: Position
-    x::Number
-    y::Number
+    x::Float64
+    y::Float64
 end
 
 struct Cartesian3D <: Position
-    x::Number
-    y::Number
-    z::Number
+    x::Float64
+    y::Float64
+    z::Float64
 end
 
-struct Point4D{T <: Number} <: Point
-    rotation::Tuple{T,T,T,T}
+struct Point4D <: Point
+    rotation::Tuple{Float64,Float64,Float64,Float64}
     translation::Position
-    energy::Number
+    energy::Float64
 end
 
 struct Point3D <: Point
     translation::Position
-    energy::Number
+    energy::Float64
 end
 
 struct Point2D <: Point
     translation::Position
-    energy::Number
+    energy::Float64
 end
 
 struct PointGrid <: Grid 
-    dim::Number
+    dim::Float64
     points::Vector{Point}
-    distances::AbstractMatrix{Number}
+    distances::AbstractMatrix{Float64}
 end
 
 struct PolarGrid <: Grid
-    dim::Number
-    rs::Vector{Number}
-    thetas::Vector{Number}
+    dim::Float64
+    rs::Vector{Float64}
+    thetas::Vector{Float64}
     potential::Function
 end
 
@@ -72,7 +73,14 @@ function distance(t1::Polar,t2::Polar)
     return sqrt(t1.radius^2 + t2.radius^2 - 2*t1.radius*t2.radius * cos(t1.polar - t2.polar))
 end
 
-distance(t1::Point2D,t2::Point2D) = distance(t1.translation,t2.translation)
+distance(t1::Cartesian2D,t2::Cartesian2D) = sqrt((t1.x - t2.x)^2 + (t1.y - t2.y)^2)
+distance(t1::Cartesian3D,t2::Cartesian3D) = sqrt((t1.x - t2.x)^2 + (t1.y - t2.y)^2 + + (t1.z - t2.z)^2)
+
+distance(p1::Point,p2::Point) = distance(p1.translation,p2.translation)
+function distance(p1::Point4D,p2::Point4D)
+    return distance(p1.translation,p2.translation) + acos(2*dot(p1.rotation,p2.rotation) -1)
+end
+
 
 
 function getPoints(grid::PointGrid)
@@ -112,8 +120,15 @@ function getNeighbors(grid::PolarGrid,point::Point)
     return neighbors[withoutSelf], [distance(n,point) for n in neighbors][withoutSelf]
 end
 
-function getNeighbors(grid::Grid,point::Point)
-    findfirst
+function findClosestGridPoint(grid::PointGrid,point::Point)
+    @assert eltype(grid.points) == typeof(point)
+    closest = argmin(distance.(grid.points,point))
+    return grid.points[closest]
+end
+
+function tracePath(basin::Basin,startingPosition::Point)
+    startingPoint = findClosestGridPoint(basin.grid,startingPosition)
+    findfirst([b[2][1] == startingPoint for b in basin.gridpoints])
 end
 
 function gradDescent(grid::Grid)
