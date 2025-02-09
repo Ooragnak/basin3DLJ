@@ -47,8 +47,9 @@ end
 
 struct PointGrid <: Grid 
     dim::Float64
-    points::Vector{Point}
+    points::Vector{<: Point}
     distances::AbstractMatrix{Float64}
+    properties::AbstractString
 end
 
 struct PolarGrid <: Grid
@@ -58,10 +59,13 @@ struct PolarGrid <: Grid
     potential::Function
 end
 
+"""
+Data structure encoding the basins of attraction \n
+Gridpoints: Point => (Next Point, Reached Minimum)
+"""
 mutable struct Basin{T <: Point}
     const grid::Grid
     minima::Vector{T}
-    # Key is the point, the tuple contains next point and reached minima
     gridpoints::Dict{T,Tuple{T,T}} 
 end
 
@@ -75,8 +79,8 @@ end
 
 distance(t1::Cartesian2D,t2::Cartesian2D) = sqrt((t1.x - t2.x)^2 + (t1.y - t2.y)^2)
 distance(t1::Cartesian3D,t2::Cartesian3D) = sqrt((t1.x - t2.x)^2 + (t1.y - t2.y)^2 + + (t1.z - t2.z)^2)
-
 distance(p1::Point,p2::Point) = distance(p1.translation,p2.translation)
+
 function distance(p1::Point4D,p2::Point4D)
     return distance(p1.translation,p2.translation) + acos(2*dot(p1.rotation,p2.rotation) -1)
 end
@@ -88,8 +92,8 @@ function getPoints(grid::PointGrid)
 end
 
 function getNeighbors(grid::PointGrid,point::Point)
-    findfirst(point .== grid.points)
-    distances = grid.distances[findfirst,:]
+    pointarg = findfirst(Ref(point) .== grid.points)
+    distances = grid.distances[pointarg,:]
     args_neighbor = .!iszero.(distances)
     return grid.points[args_neighbor], distances[args_neighbor]
 end
@@ -122,13 +126,20 @@ end
 
 function findClosestGridPoint(grid::PointGrid,point::Point)
     @assert eltype(grid.points) == typeof(point)
-    closest = argmin(distance.(grid.points,point))
+    closest = argmin(distance.(grid.points,Ref(point)))
     return grid.points[closest]
 end
 
 function tracePath(basin::Basin,startingPosition::Point)
-    startingPoint = findClosestGridPoint(basin.grid,startingPosition)
-    findfirst([b[2][1] == startingPoint for b in basin.gridpoints])
+    current = findClosestGridPoint(basin.grid, startingPosition)
+    path = []
+    next = basin.gridpoints[current][1]
+    while current != next
+        push!(path,current)
+        current = next
+        next = basin.gridpoints[current][1]
+    end
+    return path
 end
 
 function gradDescent(grid::Grid)
@@ -166,4 +177,32 @@ function gradDescent(grid::Grid)
         getStep(p) 
     end
     return Basin(grid,minima,gridpoints)
+end
+
+"""
+Generate a cartesion grid from vectors of evenly spaced points. 
+"""
+function makeCartesianGrid(xs,ys,potential,properties)
+    points = vec([Point2D(Cartesian2D(x,y),potential(x,y)) for x in xs, y in ys])
+    xdim = length(xs)
+    ydim = length(ys)
+    adjacency = spzeros(xdim*ydim,xdim*ydim)
+
+    function updateAdjacencies(xarg,yarg,xref,yref)
+        if xarg == xref && yarg == yref
+            return 0
+        elseif 1 <= xarg <= xdim && 1 <= yarg <= ydim
+            adjacency[ydim*(yarg-1)+xarg,ydim*(yref-1)+xref] = distance(points[ydim*(yarg-1)+xarg],points[ydim*(yref-1)+xref])
+            adjacency[ydim*(yref-1)+xref,ydim*(yarg-1)+xarg] = adjacency[ydim*(yarg-1)+xarg,ydim*(yref-1)+xref]
+        end
+        return 0
+    end
+
+    for i in 1:1:length(xs), j in 1:1:length(ys)
+        adjacency[ydim*(j-1)+i,ydim*(j-1)+i] = 0
+        for k in i-1:1:i+1, l in j-1:1:j+1
+            updateAdjacencies(k,l,i,j)
+        end
+    end
+    return(PointGrid(2,points,adjacency,properties))
 end
