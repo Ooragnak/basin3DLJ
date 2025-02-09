@@ -36,8 +36,15 @@ ps = getPoints(tstgrid)
 ts = gradDescent(tstgrid)
 
 
+Makie.convert_arguments(P::PointBased, ts::AbstractVector{Polar}, args...) =
+    convert_arguments(P::PointBased, [t.polar for t in ts], [t.radius for t in ts], args...)
+
+Makie.convert_arguments(P::PointBased, ts::AbstractVector{Cartesian2D}, args...) =
+    convert_arguments(P::PointBased, [t.x for t in ts], [t.y for t in ts], args...)
+
 Makie.convert_arguments(P::PointBased, ps::AbstractVector{Point}) =
-    convert_arguments(P::PointBased, [p.translation.polar for p in ps], [p.translation.radius for p in ps], [p.energy for p in ps])
+    convert_arguments(P::PointBased, [p.translation for p in ps], [p.energy for p in ps])
+
 
 GLMakie.activate!()
 
@@ -58,3 +65,32 @@ p2 = scatter!(ax2,[t.translation.polar for t in ts.minima], [t.translation.radiu
 Colorbar(f1[1,3],p1)
 
 display(f1)
+
+tpot = makeCartesianGrid(-2:0.04:2,-2:0.04:2,MullerBrown,"Test")
+[p.translation for p in tpot.points]
+#tpot.distances
+#dists = [distance(p1,p2) < 2.0 ? distance(p1,p2) : 0.0 for p1 in tpot.points, p2 in tpot.points]
+
+#dists == Matrix(tpot.distances)
+
+tp = gradDescent(tpot)
+
+f2 = Figure(size=(2000,1500), fontsize=48)
+ax = Axis(f2[1,1], title = "Cartesian coordinates")
+ax2 = Axis(f2[1,2], title = "Cartesian coordinates")
+
+p1 = voronoiplot!(ax,collect(keys(tp.gridpoints)),colorrange=(-150,75),markersize = 0,highclip = :transparent,colormap = :lipari)
+
+for minimum in tp.minima
+    tmin = filter(x -> tp.gridpoints[x][2] == minimum, collect(keys(tp.gridpoints)))
+    scatter!(ax2,[t.translation.x for t in tmin], [t.translation.y for t in tmin],markersize = 8)
+end
+
+p2 = scatter!(ax2,[t.translation.x for t in tp.minima], [t.translation.y for t in tp.minima], color = :red)
+
+Colorbar(f2[1,3],p1)
+
+display(f2)
+
+tspoint = findClosestGridPoint(tpot,Point2D(Cartesian2D(0.1234567,-0.2876543),1))
+path = tracePath(tp,tspoint)
