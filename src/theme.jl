@@ -6,6 +6,7 @@ using LaTeXStrings
 using Printf
 using BenchmarkTools
 using Base.Threads
+using Printf
 
 simpleLaTeX() = Theme(
     fontsize = 36,
