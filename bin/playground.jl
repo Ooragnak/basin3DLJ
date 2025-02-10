@@ -66,7 +66,7 @@ Colorbar(f1[1,3],p1)
 
 display(f1)
 
-tpot = makeCartesianGrid(-2:0.01:2,-2:0.01:2,MullerBrown,"Test")
+tpot = makeCartesianGrid(range(-2.0,1.25,160),range(-0.5,2.5,160),MullerBrown,"Test")
 [p.translation for p in tpot.points]
 #tpot.distances
 #dists = [distance(p1,p2) < 2.0 ? distance(p1,p2) : 0.0 for p1 in tpot.points, p2 in tpot.points]
@@ -97,12 +97,19 @@ Colorbar(f2[1,3],p1)
 
 display(f2)
 
-transition = findMinimumEnergyPaths(tp,tp.minima[1])
+transition = findMinimumEnergyPaths(tp,tp.minima[2])
 
 path = reverse(tracePath(tp,transition[2][1]))
 append!(path, tracePath(tp,transition[2][2]))
 
+path2 = reverse(tracePath(tp,transition[1][1]))
+append!(path2, tracePath(tp,transition[1][2]))
+
 
 scatter!(ax,[t.translation.x for t in path], [t.translation.y for t in path],markersize = 8)
+scatter!(ax,[t.translation.x for t in path2], [t.translation.y for t in path2],markersize = 8)
+
+
 scatter!(ax,[t.translation.x for t in transition[2]], [t.translation.y for t in transition[2]],markersize = 8)
-plot([p.energy for p in path])
+f3,ax3,p = plot([p.energy for p in path])
+plot!(ax3,[p.energy for p in path2])
