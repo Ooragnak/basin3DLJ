@@ -132,7 +132,7 @@ end
 
 function tracePath(basin::Basin,startingPosition::Point)
     current = findClosestGridPoint(basin.grid, startingPosition)
-    path = [current]
+    path = []
     next = basin.gridpoints[current][1]
     while current != next
         push!(path,current)
@@ -173,9 +173,11 @@ function gradDescent(grid::Grid)
         end
     end
 
-    for p in getPoints(grid)
+    for (i,p) in enumerate(getPoints(grid))
         getStep(p) 
+        @printf "\rFound basin for %6i / %6i points." i length(getPoints(grid))
     end
+    print("\rFound basin for all points.                                          \n")
     return Basin(grid,minima,gridpoints)
 end
 
@@ -237,7 +239,9 @@ function findMinimumEnergyPaths(basin::Basin,minimum::Point)
             end
         elseif currentBasin in foundBasins
             if currentPoint.energy < foundTransitionPoints[currentTransition_arg][2].energy
-                foundTransitionPoints[currentTransition_arg] = (previousPoint,currentPoint)
+                @assert previousPoint.energy > foundTransitionPoints[currentTransition_arg][1].energy
+                #@warn "Entered dead path - Previous pair: $(foundTransitionPoints[currentTransition_arg])"
+                #foundTransitionPoints[currentTransition_arg] = (previousPoint,currentPoint)
             end
         else 
             @assert currentBasin != minimum
@@ -246,7 +250,8 @@ function findMinimumEnergyPaths(basin::Basin,minimum::Point)
         popfirst!(branchBorder)
         totalPointsCovered += 1
         push!(visitedPoints,currentPoint)
-        print("\r Iteration: $(totalPointsCovered)/$(length(basin.gridpoints)) - Current Energy = $(currentPoint.energy) - Active Branches = $(length(branchBorder))")
+        @printf "\rIteration: %6i / %6i - Current Energy = %.8e - Active Branches = %6i               " totalPointsCovered length(basin.gridpoints) currentPoint.energy length(branchBorder)
     end
+    print("\rFound transition point(s) after $totalPointsCovered iterations.                                                                                             \n")
     return foundTransitionPoints
 end
