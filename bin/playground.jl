@@ -88,9 +88,18 @@ end
 
 p2 = scatter!(ax2,[t.translation.x for t in tp.minima], [t.translation.y for t in tp.minima], color = :red)
 
+tspoint = findClosestGridPoint(tpot,Point2D(Cartesian2D(-2,-0.5),1))
+path = tracePath(tp,tspoint)
+
+scatter!(ax,[t.translation.x for t in path], [t.translation.y for t in path],markersize = 8)
+
 Colorbar(f2[1,3],p1)
 
 display(f2)
 
-tspoint = findClosestGridPoint(tpot,Point2D(Cartesian2D(0.1234567,-0.2876543),1))
-path = tracePath(tp,tspoint)
+transition = findMinimumEnergyPaths(tp,tp.minima[1])
+
+path = append!(tracePath(tp,transition[1][1]), tracePath(tp,transition[1][2]))
+
+
+scatter!(ax,[t.translation.x for t in path], [t.translation.y for t in path],markersize = 8)
