@@ -211,6 +211,7 @@ function findMinimumEnergyPaths(basin::Basin,minimum::Point)
     @assert minimum in basin.minima
     branchBorder = [minimum]
     currentPoint = minimum
+    visitedPoints = [minimum]
 
     # Array of Tuple of point in basin of starting minimum and (startingBasinPoint,borderBasinPoint)
     foundTransitionPoints = []
@@ -226,8 +227,11 @@ function findMinimumEnergyPaths(basin::Basin,minimum::Point)
         currentTransition_arg = findfirst(Ref(currentBasin) .== foundBasins)
         if currentBasin == minimum
             for n in neighbors
-                # Checking if the point has already been visited by its energy
+                # Checking if the neighbor has already been visited by its energy
                 if n.energy > currentPoint.energy && !(n in branchBorder)
+                    push!(branchBorder,n)
+                # Checking if the neighbor lies in a different basin as it could therefore have a lower energy, yet it might not have been visited
+                elseif basin.gridpoints[n][2] != minimum && !(n in visitedPoints)
                     push!(branchBorder,n)
                 end
             end
@@ -241,8 +245,8 @@ function findMinimumEnergyPaths(basin::Basin,minimum::Point)
         end
         popfirst!(branchBorder)
         totalPointsCovered += 1
-        #@assert !(previousPoint in branchBorder)
-        print("\r Iteration: $(totalPointsCovered)/$(length(basin.gridpoints)) - Current Energy = $(currentPoint.energy) - Active Branches = $(length(branchBorder)) - Found Basins with Minima: $foundBasins")
+        push!(visitedPoints,currentPoint)
+        print("\r Iteration: $(totalPointsCovered)/$(length(basin.gridpoints)) - Current Energy = $(currentPoint.energy) - Active Branches = $(length(branchBorder))")
     end
     return foundTransitionPoints
 end
