@@ -132,7 +132,7 @@ end
 
 function tracePath(basin::Basin,startingPosition::Point)
     current = findClosestGridPoint(basin.grid, startingPosition)
-    path = []
+    path = [current]
     next = basin.gridpoints[current][1]
     while current != next
         push!(path,current)
@@ -205,4 +205,43 @@ function makeCartesianGrid(xs,ys,potential,properties)
         end
     end
     return(PointGrid(2,points,adjacency,properties))
+end
+
+function findMinimumEnergyPaths(basin::Basin,minimum::Point)
+    @assert minimum in basin.minima
+    branchBorder = [minimum]
+    currentPoint = minimum
+
+    # Array of Tuple of point in basin of starting minimum and (startingBasinPoint,borderBasinPoint)
+    foundTransitionPoints = []
+    totalPointsCovered = 0
+
+    while !isempty(branchBorder)
+        sort!(branchBorder,by=x -> x.energy)
+        previousPoint = currentPoint
+        currentPoint = branchBorder[1]
+        currentBasin = basin.gridpoints[currentPoint][2]
+        foundBasins = [basin.gridpoints[x[2]][2] for x in foundTransitionPoints]
+        currentTransition_arg = findfirst(Ref(currentBasin) .== foundBasins)
+        if currentBasin == minimum
+            neighbors = getNeighbors(basin.grid,currentPoint)[1]
+            for n in neighbors
+                # Checking if the point has already been visited by its energy
+                if n.energy > currentPoint.energy && !(n in branchBorder)
+                    push!(branchBorder,n)
+                end
+            end
+        elseif currentBasin in foundBasins
+            if currentPoint.energy < foundTransitionPoints[currentTransition_arg][2].energy
+                foundTransitionPoints[currentTransition_arg] = (previousPoint,currentPoint)
+            end
+        else 
+            push!(foundTransitionPoints,(previousPoint,currentPoint))
+        end
+        popfirst!(branchBorder)
+        totalPointsCovered += 1
+        @assert !(previousPoint in branchBorder)
+        print("\r Iteration: $(totalPointsCovered)/$(length(basin.gridpoints)) - Current Energy = $(currentPoint.energy) - Active Branches = $(length(branchBorder))")
+    end
+    return foundTransitionPoints
 end
