@@ -90,14 +90,14 @@ Colorbar(f1[1,3],p1)
 
 display(f1)
 
-tpot = makeCartesianGrid(range(-2.0,1.25,500),range(-0.5,2.5,500),MullerBrown,"Test")
+tpot = makeCartesianGrid(range(-2.0,1.25,300),range(-0.5,2.5,300),MullerBrown,"Test",diagonal=false)
 
 #tpot.distances
 #dists = [distance(p1,p2) < 2.0 ? distance(p1,p2) : 0.0 for p1 in tpot.points, p2 in tpot.points]
 
 #dists == Matrix(tpot.distances)
 
-tp = gradDescent(tpot,progress=false)
+tp = gradDescent(tpot)
 
 f2 = Figure(size=(1600,900), fontsize=40)
 ax = Axis(f2[1,1], title = "Müller-Brown-Potential", yautolimitmargin = (0, 0),)
@@ -131,19 +131,19 @@ Colorbar(f2[1,0],p1)
 
 display(f2)
 
-@benchmark transition = findMinimumEnergyPaths(tp,tp.minima[2],progress=false)
+transitions = findMinimumEnergyPaths.(Ref(tp),tp.minima)
+for t in transitions
+    for p in t
+        path = reverse(tracePath(tp,p[1]))
+        append!(path, tracePath(tp,p[2]))
+        scatter!(ax,path,markersize = 4,color=:grey)
+    end
+end
 
-path1 = reverse(tracePath(tp,transition[2][1]))
-append!(path1, tracePath(tp,transition[2][2]))
 
-path2 = reverse(tracePath(tp,transition[1][1]))
-append!(path2, tracePath(tp,transition[1][2]))
-
-
-p1 = scatter!(ax,path1,markersize = 4)
-scatter!(ax,path2,markersize = 4)
 
 
 scatter!(ax,[t.translation.x for t in transition[2]], [t.translation.y for t in transition[2]],markersize = 8)
 f3,ax3,p = plot([p.energy for p in path1])
 plot!(ax3,[p.energy for p in path2])
+
