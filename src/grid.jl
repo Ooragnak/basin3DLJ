@@ -146,14 +146,16 @@ function tracePath(basin::Basin,startingPosition::T) where {T <: Point}
     return path
 end
 
-function gradDescent(grid::Grid{T}; progress=false) where {T <: Point}
+function gradDescent(grid::Grid{T}) where {T <: Point}
     minima = T[]
     gridpoints = Dict{T,Tuple{T,T}}()
     sizehint!(gridpoints,length(getPoints(grid)))
 
     trajectory = Tuple{T,T}[]
 
-    @showprogress desc="Descending..." for (i,p) in enumerate(getPoints(grid))
+    progress = Progress(length(getPoints(grid)),desc = "Descending to minimum:", dt=0.2, barglyphs=BarGlyphs("[=> ]"), barlen=50)
+    generate_progress(i) = [("Found basin for",@sprintf "%6i / %6i points." i length(getPoints(grid)))]
+    for (i,p) in enumerate(getPoints(grid))
         current = p
         while true
             if haskey(gridpoints,current)
@@ -182,10 +184,9 @@ function gradDescent(grid::Grid{T}; progress=false) where {T <: Point}
                 current = neighbors[min]
             end
         end
-
-        progress && @printf "\rFound basin for %6i / %6i points." i length(getPoints(grid))
+        next!(progress; showvalues = generate_progress(i))
     end
-    progress && print("\rFound basin for all points.             \n")
+    
     return Basin(grid,minima,gridpoints)
 end
 
@@ -199,6 +200,9 @@ function makeCartesianGrid(xs,ys,potential,properties)
     points = [Point2D(Cartesian2D(x,y),potential(x,y)) for x in xs, y in ys]
     distances = Dict{Point2D,AbstractVector{Tuple{Int64,Float64}}}()
 
+    progress = Progress(xdim*ydim,desc = "Generating grid:", dt=0.2, barglyphs=BarGlyphs("[=> ]"), barlen=50)
+    generate_progress(i) = [("Found adjacencies for",@sprintf "%6i / %6i points." i xdim*ydim)]
+
     for xref in 1:1:length(xs), yref in 1:1:length(ys)
         neighbors = []
         for xarg in xref-1:1:xref+1, yarg in yref-1:1:yref+1
@@ -207,12 +211,14 @@ function makeCartesianGrid(xs,ys,potential,properties)
             end
         end
         push!(distances,points[xref,yref] => neighbors)
+
+        next!(progress; showvalues = generate_progress(ydim*(yref-1)+xref))
     end
 
     return PointGrid{Point2D}(2,vec(points),distances,properties)
 end
 
-function findMinimumEnergyPaths(basin::Basin,minimum::Point;progress = false)
+function findMinimumEnergyPaths(basin::Basin,minimum::Point)
     @assert minimum in basin.minima
     branchBorder = [minimum]
     currentPoint = minimum
@@ -221,6 +227,9 @@ function findMinimumEnergyPaths(basin::Basin,minimum::Point;progress = false)
     # Array of Tuple of point in basin of starting minimum and (startingBasinPoint,borderBasinPoint)
     foundTransitionPoints = []
     totalPointsCovered = 0
+
+    progress = ProgressUnknown(desc = "Iteration",dt=0.2)
+    generate_progress(i,j,k,l) = [("Checked points",@sprintf "%6i (max = %6i)" i length(basin.gridpoints)), ("Current energy",@sprintf "%.4f" j),("Active branches",k),("Found transitions",l)]
 
     while !isempty(branchBorder)
         #choosing InsertionSort as it is by far the most efficient for almost sorted arrays
@@ -254,8 +263,9 @@ function findMinimumEnergyPaths(basin::Basin,minimum::Point;progress = false)
         popfirst!(branchBorder)
         totalPointsCovered += 1
         push!(visitedPoints,currentPoint)
-        progress && @printf "\rIteration: %6i / %6i - Current Energy = %.8e - Active Branches = %6i               " totalPointsCovered length(basin.gridpoints) currentPoint.energy length(branchBorder)
+
+        next!(progress; showvalues = generate_progress(totalPointsCovered,currentPoint.energy,length(branchBorder),length(foundTransitionPoints)))
     end
-    progress && print("\rFound transition point(s) after $totalPointsCovered iterations.                                                                                             \n")
+    finish!(progress)
     return foundTransitionPoints
 end
