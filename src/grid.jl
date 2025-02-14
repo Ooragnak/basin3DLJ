@@ -1,6 +1,7 @@
 using SparseArrays
 using LinearAlgebra
 using Printf
+using ProgressMeter
 
 abstract type Grid{T} end
 
@@ -152,7 +153,7 @@ function gradDescent(grid::Grid{T}; progress=false) where {T <: Point}
 
     trajectory = Tuple{T,T}[]
 
-    for (i,p) in enumerate(getPoints(grid))
+    @showprogress desc="Descending..." for (i,p) in enumerate(getPoints(grid))
         current = p
         while true
             if haskey(gridpoints,current)
