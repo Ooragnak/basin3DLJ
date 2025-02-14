@@ -171,7 +171,7 @@ function gradDescent(grid::Grid{T}) where {T <: Point}
             grads = [(neighbors[i].energy - current.energy) / d for (i,d) in enumerate(distances)]
             grad = minimum(grads)
             min = argmin(grads)
-            grad == 0 && @warn "Energy difference is exactly zero"
+            grad == 0 && @warn "Energy difference is exactly zero at $current \n grads = $grads"
             if grad >= 0
                 push!(minima,current)
                 for step in trajectory
@@ -193,30 +193,68 @@ end
 """
 Generate a cartesion grid from vectors of evenly spaced points. 
 """
-function makeCartesianGrid(xs,ys,potential,properties;diagonal=true)
+function makeCartesianGrid(xs,ys,V,properties;diagonal=true)
     xdim = length(xs)
     ydim = length(ys)
 
-    points = [Point2D(Cartesian2D(x,y),potential(x,y)) for x in xs, y in ys]
+    points = [Point2D(Cartesian2D(x,y),V(x,y)) for x in xs, y in ys]
     distances = Dict{Point2D,AbstractVector{Tuple{Int64,Float64}}}()
+    sizehint!(distances,xdim*ydim)
 
     progress = Progress(xdim*ydim,desc = "Generating grid:", dt=0.2, barglyphs=BarGlyphs("[=> ]"), barlen=50)
     generate_progress(i) = [("Found adjacencies for",@sprintf "%6i / %6i points." i xdim*ydim)]
 
-    for xref in 1:1:length(xs), yref in 1:1:length(ys)
+    for x1 in 1:1:length(xs), y1 in 1:1:length(ys)
+        arg1 = xdim*(y1-1)+x1
         neighbors = []
-        for xarg in xref-1:1:xref+1, yarg in yref-1:1:yref+1
+        for x2 in x1-1:1:x1+1, y2 in y1-1:1:y1+1
+            arg2 = xdim*(y2-1)+x2
             if diagonal
-                if !(xarg == xref && yarg == yref) && (1 <= xarg <= xdim && 1 <= yarg <= ydim)
-                    push!(neighbors,(ydim*(yarg-1)+xarg,distance(points[ydim*(yarg-1)+xarg],points[ydim*(yref-1)+xref])))
+                if !(x2 == x1 && y2 == y1) && (1 <= x2 <= xdim && 1 <= y2 <= ydim)
+                    push!(neighbors,(arg2,distance(points[arg2],points[arg1])))
                 end
-            elseif xor(xarg == xref,yarg == yref) && (1 <= xarg <= xdim && 1 <= yarg <= ydim)
-                    push!(neighbors,(ydim*(yarg-1)+xarg,distance(points[ydim*(yarg-1)+xarg],points[ydim*(yref-1)+xref])))
+            elseif xor(x2 == x1,y2 == y1) && (1 <= x2 <= xdim && 1 <= y2 <= ydim)
+                    push!(neighbors,(arg2,distance(points[arg2],points[arg1])))
             end
         end
-        push!(distances,points[xref,yref] => neighbors)
+        push!(distances,points[x1,y1] => neighbors)
 
-        next!(progress; showvalues = generate_progress(ydim*(yref-1)+xref))
+        next!(progress; showvalues = generate_progress(arg1))
+    end
+
+    return PointGrid{Point2D}(2,vec(points),distances,properties)
+end
+
+"""
+Generate a polar grid from vectors of evenly spaced points in r and theta. 
+"""
+function makePolarGrid(rs,θlen,V,properties)
+    θs = range(0,2π,θlen)[1:end-1]
+    rdim = length(rs)
+    θdim = length(θs)
+
+    points = [Point2D(Polar(r,θ),V(r,θ)) for r in rs, θ in θs]
+    distances = Dict{Point2D,AbstractVector{Tuple{Int64,Float64}}}()
+    sizehint!(distances,rdim*θdim)
+
+
+    progress = Progress(rdim*θdim,desc = "Generating grid:", dt=0.2, barglyphs=BarGlyphs("[=> ]"), barlen=50)
+    generate_progress(i) = [("Found adjacencies for",@sprintf "%6i / %6i points." i rdim*θdim)]
+
+    for r1 in 1:1:length(rs), θ1 in 1:1:length(θs)
+        arg1 = rdim*(θ1-1)+r1
+        neighbors = []
+
+        for r2 in r1-1:1:r1+1, θ2 in mod1.(θ1-1:1:θ1+1,θdim)
+            arg2 = rdim*(θ2-1)+r2
+ 
+            if !(r2 == r1 && θ2 == θ1) && (1 <= r2 <= rdim)
+                push!(neighbors,(arg2,distance(points[arg2],points[arg1])))
+            end
+        end
+        push!(distances,points[r1,θ1] => neighbors)
+
+        next!(progress; showvalues = generate_progress(arg1))
     end
 
     return PointGrid{Point2D}(2,vec(points),distances,properties)
@@ -257,8 +295,6 @@ function findMinimumEnergyPaths(basin::Basin,minimum::Point)
         elseif currentBasin in foundBasins
             if currentPoint.energy < foundTransitionPoints[currentTransition_arg][2].energy
                 @assert previousPoint.energy > foundTransitionPoints[currentTransition_arg][1].energy
-                #@warn "Entered dead path - Previous pair: $(foundTransitionPoints[currentTransition_arg])"
-                #foundTransitionPoints[currentTransition_arg] = (previousPoint,currentPoint)
             end
         else 
             @assert currentBasin != minimum
