@@ -10,14 +10,14 @@ abstract type Point end
 abstract type Position end
 
 struct Spherical <: Position
-    radius::Float64
-    azimuth::Float64
-    polar::Float64
+    r::Float64
+    ϕ::Float64
+    θ::Float64
 end
 
 struct Polar <: Position
-    radius::Float64
-    polar::Float64
+    r::Float64
+    θ::Float64
 end
 
 struct Cartesian2D <: Position
@@ -71,19 +71,19 @@ mutable struct Basin{T <: Point}
 end
 
 function distance(t1::Spherical,t2::Spherical)
-    return sqrt(t1.radius^2 + t2.radius^2 - 2*t1.radius*t2.radius*(sin(t1.polar) * sin(t2.polar) * cos(t1.azimuth - t2. azimuth) + cos(t1.polar) * cos(t2.polar)))
+    return sqrt(t1.r^2 + t2.r^2 - 2*t1.r*t2.r*(sin(t1.θ) * sin(t2.θ) * cos(t1.ϕ - t2.ϕ) + cos(t1.θ) * cos(t2.θ)))
 end
 
 function distance(t1::Polar,t2::Polar)
-    return sqrt(t1.radius^2 + t2.radius^2 - 2*t1.radius*t2.radius * cos(t1.polar - t2.polar))
+    return sqrt(t1.r^2 + t2.r^2 - 2*t1.r*t2.r * cos(t1.θ - t2.θ))
 end
 
 distance(t1::Cartesian2D,t2::Cartesian2D) = sqrt((t1.x - t2.x)^2 + (t1.y - t2.y)^2)
 distance(t1::Cartesian3D,t2::Cartesian3D) = sqrt((t1.x - t2.x)^2 + (t1.y - t2.y)^2 + + (t1.z - t2.z)^2)
 distance(p1::Point,p2::Point) = distance(p1.translation,p2.translation)
 
-toCartesian(t::Polar) = Cartesian2D(t.radius*cos(t.polar),t.radius*sin(t.polar))
-toCartesian(t::Spherical) = Cartesian3D(t.radius*sin(t.polar)*cos(t.azimuth),t.radius*sin(t.polar)*sin(t.azimuth),t.radius*cos(t.polar))
+toCartesian(t::Polar) = Cartesian2D(t.r*cos(t.θ),t.r*sin(t.θ))
+toCartesian(t::Spherical) = Cartesian3D(t.r*sin(t.θ)*cos(t.ϕ),t.r*sin(t.θ)*sin(t.ϕ),t.r*cos(t.θ))
 toPolar(t::Cartesian2D) = Polar(hypot(t.x,t.y),atan2(y,x))
 
 function toSpherical(x,y,z)
