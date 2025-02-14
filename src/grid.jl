@@ -82,10 +82,36 @@ distance(t1::Cartesian2D,t2::Cartesian2D) = sqrt((t1.x - t2.x)^2 + (t1.y - t2.y)
 distance(t1::Cartesian3D,t2::Cartesian3D) = sqrt((t1.x - t2.x)^2 + (t1.y - t2.y)^2 + + (t1.z - t2.z)^2)
 distance(p1::Point,p2::Point) = distance(p1.translation,p2.translation)
 
+toCartesian(t::Polar) = Cartesian2D(t.radius*cos(t.polar),t.radius*sin(t.polar))
+toCartesian(t::Spherical) = Cartesian3D(t.radius*sin(t.polar)*cos(t.azimuth),t.radius*sin(t.polar)*sin(t.azimuth),t.radius*cos(t.polar))
+toPolar(t::Cartesian2D) = Polar(hypot(t.x,t.y),atan2(y,x))
+
+function toSpherical(x,y,z)
+    r = sqrt(x^2 + y^2 + z^2)
+    if r == 0
+        return Cartesian3D(0,0,0)
+    end
+    θ = acos(z/r)
+    ϕ = sign(y)*acos(x/sqrt(x^2+y^2))
+
+    #This check is needed as sign(0) returns 0 which then causes ϕ to be 0 instead of π
+    if y == 0
+        ϕ = acos(x/sqrt(x^2+y^2))
+    end
+    if ϕ <= 0
+        ϕ = 2π+ϕ
+    end
+    if x == 0 == y
+        ϕ = 0
+    end
+    @assert 0 <= θ <= π "θ = $θ, x = $x, y=$y, z=$z"
+    @assert 0 <= ϕ <= 2π "ϕ = $ϕ, x = $x, y=$y, z=$z"
+    return r,θ,ϕ
+end
+
 function distance(p1::Point4D,p2::Point4D)
     return distance(p1.translation,p2.translation) + acos(2*dot(p1.rotation,p2.rotation) -1)
 end
-
 
 function getPoints(grid::PointGrid)
     return grid.points
