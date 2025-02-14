@@ -222,7 +222,8 @@ function findMinimumEnergyPaths(basin::Basin,minimum::Point;progress = false)
     totalPointsCovered = 0
 
     while !isempty(branchBorder)
-        sort!(branchBorder,by=x -> x.energy)
+        #choosing InsertionSort as it is by far the most efficient for almost sorted arrays
+        sort!(branchBorder,by=x -> x.energy,alg=InsertionSort)
         currentPoint = branchBorder[1]
         neighbors = getNeighbors(basin.grid,currentPoint)[1]
         previousPoint = neighbors[argmin([basin.gridpoints[n][2] == minimum ? n.energy : Inf for n in neighbors])]
