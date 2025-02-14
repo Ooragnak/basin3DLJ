@@ -1,4 +1,4 @@
-# Contains structs / functions no longer used / useful and to be kept for archival purposes / as a basis for possible modification
+# Contains structs / functions / code snippets no longer used / useful and to be kept for archival purposes / as a basis for possible modification
 
 struct PolarGrid{T <: Point} <: Grid{T}
     dim::Float64
