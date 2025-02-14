@@ -193,7 +193,7 @@ end
 """
 Generate a cartesion grid from vectors of evenly spaced points. 
 """
-function makeCartesianGrid(xs,ys,potential,properties)
+function makeCartesianGrid(xs,ys,potential,properties;diagonal=true)
     xdim = length(xs)
     ydim = length(ys)
 
@@ -206,8 +206,12 @@ function makeCartesianGrid(xs,ys,potential,properties)
     for xref in 1:1:length(xs), yref in 1:1:length(ys)
         neighbors = []
         for xarg in xref-1:1:xref+1, yarg in yref-1:1:yref+1
-            if !(xarg == xref && yarg == yref) && (1 <= xarg <= xdim && 1 <= yarg <= ydim)
-                push!(neighbors,(ydim*(yarg-1)+xarg,distance(points[ydim*(yarg-1)+xarg],points[ydim*(yref-1)+xref])))
+            if diagonal
+                if !(xarg == xref && yarg == yref) && (1 <= xarg <= xdim && 1 <= yarg <= ydim)
+                    push!(neighbors,(ydim*(yarg-1)+xarg,distance(points[ydim*(yarg-1)+xarg],points[ydim*(yref-1)+xref])))
+                end
+            elseif xor(xarg == xref,yarg == yref) && (1 <= xarg <= xdim && 1 <= yarg <= ydim)
+                    push!(neighbors,(ydim*(yarg-1)+xarg,distance(points[ydim*(yarg-1)+xarg],points[ydim*(yref-1)+xref])))
             end
         end
         push!(distances,points[xref,yref] => neighbors)
