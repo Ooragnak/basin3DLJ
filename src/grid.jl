@@ -1,7 +1,8 @@
 using SparseArrays
 using LinearAlgebra
+using Printf
 
-abstract type Grid end
+abstract type Grid{T} end
 
 abstract type Point end
 
@@ -45,14 +46,19 @@ struct Point2D <: Point
     energy::Float64
 end
 
-struct PointGrid <: Grid 
+struct Cartesian2DIndex <: Point
+    x::Int
+    y::Int
+end
+
+struct PointGrid{T <: Point} <: Grid{T}
     dim::Float64
-    points::Vector{<: Point}
-    distances::AbstractMatrix{Float64}
+    points::Vector{T}
+    distances::AbstractDict{T,AbstractVector{Tuple{Int64,Float64}}}
     properties::AbstractString
 end
 
-struct PolarGrid <: Grid
+struct PolarGrid{T <: Point} <: Grid{T}
     dim::Float64
     rs::Vector{Float64}
     thetas::Vector{Float64}
@@ -86,16 +92,13 @@ function distance(p1::Point4D,p2::Point4D)
 end
 
 
-
 function getPoints(grid::PointGrid)
     return grid.points
 end
 
 function getNeighbors(grid::PointGrid,point::Point)
-    pointarg = findfirst(Ref(point) .== grid.points)
-    distances = grid.distances[pointarg,:]
-    args_neighbor = .!iszero.(distances)
-    return grid.points[args_neighbor], distances[args_neighbor]
+    g = grid.distances[point]
+    return grid.points[first.(g)], last.(g)
 end
 
 function getPoints(grid::PolarGrid)
@@ -130,9 +133,9 @@ function findClosestGridPoint(grid::PointGrid,point::Point)
     return grid.points[closest]
 end
 
-function tracePath(basin::Basin,startingPosition::Point)
+function tracePath(basin::Basin,startingPosition::T) where {T <: Point}
     current = findClosestGridPoint(basin.grid, startingPosition)
-    path = []
+    path = T[]
     next = basin.gridpoints[current][1]
     while current != next
         push!(path,current)
@@ -142,42 +145,46 @@ function tracePath(basin::Basin,startingPosition::Point)
     return path
 end
 
-function gradDescent(grid::Grid)
-    minima = Point[]
-    gridpoints = Dict{Point,Tuple{Point,Point}}()
-    trajectory = Tuple{Point,Point}[]
+function gradDescent(grid::Grid{T}; progress=false) where {T <: Point}
+    minima = T[]
+    gridpoints = Dict{T,Tuple{T,T}}()
+    sizehint!(gridpoints,length(getPoints(grid)))
 
-    function getStep(point)
-        if haskey(gridpoints,point)
-            minimum = gridpoints[point][2]
-            for step in trajectory
-                push!(gridpoints,step[1] => (step[2],minimum))
-            end
-            trajectory = Tuple{Point,Point}[]
-            return 0
-        end
-        neighbors, distances = getNeighbors(grid,point)
-        grads = [(neighbors[i].energy - point.energy) / d for (i,d) in enumerate(distances)] 
-        min = argmin(grads)
-        grads[min] == 0 && @warn "Energy difference is exactly zero"
-        if grads[min] >= 0
-            push!(minima,point)
-            for step in trajectory
-                push!(gridpoints,step[1] => (step[2],point))
-            end
-            push!(gridpoints,point => (point,point))
-            trajectory = Tuple{Point,Point}[]
-        else
-            push!(trajectory,(point, neighbors[min]))
-            getStep(neighbors[min])
-        end
-    end
+    trajectory = Tuple{T,T}[]
 
     for (i,p) in enumerate(getPoints(grid))
-        getStep(p) 
-        @printf "\rFound basin for %6i / %6i points." i length(getPoints(grid))
+        current = p
+        while true
+            if haskey(gridpoints,current)
+                minim = gridpoints[current][2]
+                for step in trajectory
+                    push!(gridpoints,step[1] => (step[2],minim))
+                end
+                trajectory = Tuple{T,T}[]
+                break
+            end
+            neighbors, distances = getNeighbors(grid,current)
+            
+            grads = [(neighbors[i].energy - current.energy) / d for (i,d) in enumerate(distances)]
+            grad = minimum(grads)
+            min = argmin(grads)
+            grad == 0 && @warn "Energy difference is exactly zero"
+            if grad >= 0
+                push!(minima,current)
+                for step in trajectory
+                    push!(gridpoints,step[1] => (step[2],current))
+                end
+                push!(gridpoints,current => (current,current))
+                trajectory = Tuple{T,T}[]
+            else
+                push!(trajectory,(current, neighbors[min]))
+                current = neighbors[min]
+            end
+        end
+
+        progress && @printf "\rFound basin for %6i / %6i points." i length(getPoints(grid))
     end
-    print("\rFound basin for all points.                                          \n")
+    progress && print("\rFound basin for all points.             \n")
     return Basin(grid,minima,gridpoints)
 end
 
@@ -185,31 +192,26 @@ end
 Generate a cartesion grid from vectors of evenly spaced points. 
 """
 function makeCartesianGrid(xs,ys,potential,properties)
-    points = vec([Point2D(Cartesian2D(x,y),potential(x,y)) for x in xs, y in ys])
     xdim = length(xs)
     ydim = length(ys)
-    adjacency = spzeros(xdim*ydim,xdim*ydim)
 
-    function updateAdjacencies(xarg,yarg,xref,yref)
-        if xarg == xref && yarg == yref
-            return 0
-        elseif 1 <= xarg <= xdim && 1 <= yarg <= ydim
-            adjacency[ydim*(yarg-1)+xarg,ydim*(yref-1)+xref] = distance(points[ydim*(yarg-1)+xarg],points[ydim*(yref-1)+xref])
-            adjacency[ydim*(yref-1)+xref,ydim*(yarg-1)+xarg] = adjacency[ydim*(yarg-1)+xarg,ydim*(yref-1)+xref]
+    points = [Point2D(Cartesian2D(x,y),potential(x,y)) for x in xs, y in ys]
+    distances = Dict{Point2D,AbstractVector{Tuple{Int64,Float64}}}()
+
+    for xref in 1:1:length(xs), yref in 1:1:length(ys)
+        neighbors = []
+        for xarg in xref-1:1:xref+1, yarg in yref-1:1:yref+1
+            if !(xarg == xref && yarg == yref) && (1 <= xarg <= xdim && 1 <= yarg <= ydim)
+                push!(neighbors,(ydim*(yarg-1)+xarg,distance(points[ydim*(yarg-1)+xarg],points[ydim*(yref-1)+xref])))
+            end
         end
-        return 0
+        push!(distances,points[xref,yref] => neighbors)
     end
 
-    for i in 1:1:length(xs), j in 1:1:length(ys)
-        adjacency[ydim*(j-1)+i,ydim*(j-1)+i] = 0
-        for k in i-1:1:i+1, l in j-1:1:j+1
-            updateAdjacencies(k,l,i,j)
-        end
-    end
-    return(PointGrid(2,points,adjacency,properties))
+    return PointGrid{Point2D}(2,vec(points),distances,properties)
 end
 
-function findMinimumEnergyPaths(basin::Basin,minimum::Point)
+function findMinimumEnergyPaths(basin::Basin,minimum::Point;progress = false)
     @assert minimum in basin.minima
     branchBorder = [minimum]
     currentPoint = minimum
@@ -230,10 +232,10 @@ function findMinimumEnergyPaths(basin::Basin,minimum::Point)
         if currentBasin == minimum
             for n in neighbors
                 # Checking if the neighbor has already been visited by its energy
-                if n.energy > currentPoint.energy && !(n in branchBorder)
+                if n.energy > currentPoint.energy && !insorted(n,branchBorder,by=x -> x.energy)
                     push!(branchBorder,n)
                 # Checking if the neighbor lies in a different basin as it could therefore have a lower energy, yet it might not have been visited
-                elseif basin.gridpoints[n][2] != minimum && !(n in visitedPoints)
+                elseif basin.gridpoints[n][2] != minimum && !insorted(n,branchBorder, by=x -> x.energy)
                     push!(branchBorder,n)
                 end
             end
@@ -250,8 +252,8 @@ function findMinimumEnergyPaths(basin::Basin,minimum::Point)
         popfirst!(branchBorder)
         totalPointsCovered += 1
         push!(visitedPoints,currentPoint)
-        @printf "\rIteration: %6i / %6i - Current Energy = %.8e - Active Branches = %6i               " totalPointsCovered length(basin.gridpoints) currentPoint.energy length(branchBorder)
+        progress && @printf "\rIteration: %6i / %6i - Current Energy = %.8e - Active Branches = %6i               " totalPointsCovered length(basin.gridpoints) currentPoint.energy length(branchBorder)
     end
-    print("\rFound transition point(s) after $totalPointsCovered iterations.                                                                                             \n")
+    progress && print("\rFound transition point(s) after $totalPointsCovered iterations.                                                                                             \n")
     return foundTransitionPoints
 end
