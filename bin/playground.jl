@@ -38,6 +38,9 @@ ts = gradDescent(tstgrid)
 Makie.convert_arguments(P::GridBased, ps::AbstractVector{<: Point}) = 
     convert_arguments(P, [p.translation for p in ps], [p.energy for p in ps])
 
+Makie.convert_arguments(P::PointBased, ps::AbstractVector{<: Point}) = 
+    convert_arguments(P, [p.translation for p in ps], [p.energy for p in ps])
+
 Makie.convert_arguments(P::PointBased, ts::AbstractVector{Polar}, args...) =
     convert_arguments(P, [t.polar for t in ts], [t.radius for t in ts], args...)
 
@@ -144,8 +147,3 @@ scatter!(ax,path2,markersize = 4)
 scatter!(ax,[t.translation.x for t in transition[2]], [t.translation.y for t in transition[2]],markersize = 8)
 f3,ax3,p = plot([p.energy for p in path1])
 plot!(ax3,[p.energy for p in path2])
-
-tdict = Dict()
-for p in tpot.points
-    push!(tdict,p=>tpot.distances[p.index,:])
-end
