@@ -29,30 +29,51 @@ mbpolar(r,theta) = MullerBrown(r*cos(theta)-0.3,r*sin(theta)+1)
 
 
 tstpot(r,theta) = (cos(5r/π)+r) * cos(theta)
-tstgrid = PolarGrid(2,collect(range(0.01,2,60)),collect(range(0.0,2π,81)[1:end-1]),mbpolar)
+tstgrid = PolarGrid{Point2D}(2,collect(range(0.01,2,60)),collect(range(0.0,2π,60)[1:end-1]),mbpolar)
 ps = getPoints(tstgrid)
 
 
 ts = gradDescent(tstgrid)
 
+Makie.convert_arguments(P::GridBased, ps::AbstractVector{<: Point}) = 
+    convert_arguments(P, [p.translation for p in ps], [p.energy for p in ps])
 
 Makie.convert_arguments(P::PointBased, ts::AbstractVector{Polar}, args...) =
-    convert_arguments(P::PointBased, [t.polar for t in ts], [t.radius for t in ts], args...)
+    convert_arguments(P, [t.polar for t in ts], [t.radius for t in ts], args...)
 
 Makie.convert_arguments(P::PointBased, ts::AbstractVector{Cartesian2D}, args...) =
-    convert_arguments(P::PointBased, [t.x for t in ts], [t.y for t in ts], args...)
+    convert_arguments(P, [t.x for t in ts], [t.y for t in ts], args...)
 
-Makie.convert_arguments(P::PointBased, ps::AbstractVector{Point}) =
-    convert_arguments(P::PointBased, [p.translation for p in ps], [p.energy for p in ps])
+Makie.convert_arguments(P::PointBased, p::Type{<: Point}) =
+    convert_arguments(P, p.translation)
+
+Makie.convert_arguments(P::PointBased, t::Polar, args...) =
+    convert_arguments(P, t.polar, t.radius, args...)
+
+Makie.convert_arguments(P::PointBased, t::Cartesian2D, args...) =
+    convert_arguments(P,t.x, t.y, args...)
+
+Makie.convert_arguments(P::Type{<:Scatter}, ps::AbstractVector{<: Point}) = 
+    convert_arguments(P, [p.translation for p in ps])
+
+Makie.convert_arguments(P::GridBased, ts::AbstractVector{Cartesian2D}, args...) =
+    convert_arguments(P, [t.x for t in ts], [t.y for t in ts], args...)
+
+Makie.convert_arguments(P::Type{<:Surface}, ts::AbstractVector{Cartesian2D}, args...) =
+    convert_arguments(P, [t.x for t in ts], [t.y for t in ts], args...)
+
+Makie.convert_arguments(P::Type{<:Scatter}, p::Point2D, args...) =
+    convert_arguments(P, [p.translation.x], [p.translation.y], args...)
 
 
 GLMakie.activate!()
 
-f1 = Figure(size=(2000,1500), fontsize=48)
+f1 = Figure(size=(1600,900), fontsize=40)
 ax = PolarAxis(f1[1,1], title = "Polar coordinates")
 ax2 = PolarAxis(f1[1,2], title = "Polar coordinates")
 
-p1 = voronoiplot!(ax,collect(keys(ts.gridpoints)),colorrange=(-150,75),markersize = 0,highclip = :transparent,colormap = :lipari)
+p1 = voronoiplot!(ax,collect(keys(ts.gridpoints)),colorrange=(-150,75),markersize = 0,highclip = :transparent,colormap = :lipari, strokewidth = 0.01)
+translate!(p1,0,0,-1000)
 
 for minimum in ts.minima
     tmin = filter(x -> ts.gridpoints[x][2] == minimum, collect(keys(ts.gridpoints)))
@@ -66,50 +87,65 @@ Colorbar(f1[1,3],p1)
 
 display(f1)
 
-tpot = makeCartesianGrid(range(-2.0,1.25,160),range(-0.5,2.5,160),MullerBrown,"Test")
-[p.translation for p in tpot.points]
+tpot = makeCartesianGrid(range(-2.0,1.25,500),range(-0.5,2.5,500),MullerBrown,"Test")
+
 #tpot.distances
 #dists = [distance(p1,p2) < 2.0 ? distance(p1,p2) : 0.0 for p1 in tpot.points, p2 in tpot.points]
 
 #dists == Matrix(tpot.distances)
 
-tp = gradDescent(tpot)
+tp = gradDescent(tpot,progress=false)
 
-f2 = Figure(size=(2000,1500), fontsize=48)
-ax = Axis(f2[1,1], title = "Cartesian coordinates")
-ax2 = Axis(f2[1,2], title = "Cartesian coordinates")
+f2 = Figure(size=(1600,900), fontsize=40)
+ax = Axis(f2[1,1], title = "Müller-Brown-Potential", yautolimitmargin = (0, 0),)
+ax2 = Axis(f2[1,2], title = "Basin of attraction", yautolimitmargin = (0, 0),)
 
-p1 = voronoiplot!(ax,collect(keys(tp.gridpoints)),colorrange=(-150,75),markersize = 0,highclip = :transparent,colormap = :lipari)
+vecs = collect(keys(tp.gridpoints))
 
-for minimum in tp.minima
+#p1 = heatmap!(ax,vecs, colorrange=(-150,75),highclip = :transparent,colormap = :lipari)
+p1 = contourf!(ax,vecs,colormap = :lipari,levels = range(-150,75,50), )
+
+
+for (i,minimum) in enumerate(tp.minima)
     tmin = filter(x -> tp.gridpoints[x][2] == minimum, collect(keys(tp.gridpoints)))
-    scatter!(ax2,[t.translation.x for t in tmin], [t.translation.y for t in tmin],markersize = 8)
+    scatter!(ax2,[t.translation.x for t in tmin], [t.translation.y for t in tmin],markersize = 4)
+    scatter!(ax,minimum, markersize = 15, marker=:xcross, label = @sprintf "(%.3f, %.3f)" minimum.translation.x minimum.translation.y)
 end
 
-p2 = scatter!(ax2,[t.translation.x for t in tp.minima], [t.translation.y for t in tp.minima], color = :red)
+
+p2 = contour!(ax2,vecs,colormap = :lipari,levels = range(-150,75,50), )
+
+axislegend(ax,"Minima")
+
+#p3 = scatter!(ax,[t.translation.x for t in tp.minima], [t.translation.y for t in tp.minima], color = :red)
 
 tspoint = findClosestGridPoint(tpot,Point2D(Cartesian2D(-2,-0.5),1))
 path = tracePath(tp,tspoint)
 
-scatter!(ax,[t.translation.x for t in path], [t.translation.y for t in path],markersize = 8)
+#scatter!(ax,[t.translation.x for t in path], [t.translation.y for t in path],markersize = 8)
 
-Colorbar(f2[1,3],p1)
+Colorbar(f2[1,0],p1)
 
 display(f2)
 
-transition = findMinimumEnergyPaths(tp,tp.minima[2])
+@benchmark transition = findMinimumEnergyPaths(tp,tp.minima[2],progress=false)
 
-path = reverse(tracePath(tp,transition[2][1]))
-append!(path, tracePath(tp,transition[2][2]))
+path1 = reverse(tracePath(tp,transition[2][1]))
+append!(path1, tracePath(tp,transition[2][2]))
 
 path2 = reverse(tracePath(tp,transition[1][1]))
 append!(path2, tracePath(tp,transition[1][2]))
 
 
-scatter!(ax,[t.translation.x for t in path], [t.translation.y for t in path],markersize = 8)
-scatter!(ax,[t.translation.x for t in path2], [t.translation.y for t in path2],markersize = 8)
+p1 = scatter!(ax,path1,markersize = 4)
+scatter!(ax,path2,markersize = 4)
 
 
 scatter!(ax,[t.translation.x for t in transition[2]], [t.translation.y for t in transition[2]],markersize = 8)
-f3,ax3,p = plot([p.energy for p in path])
+f3,ax3,p = plot([p.energy for p in path1])
 plot!(ax3,[p.energy for p in path2])
+
+tdict = Dict()
+for p in tpot.points
+    push!(tdict,p=>tpot.distances[p.index,:])
+end
