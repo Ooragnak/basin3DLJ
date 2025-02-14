@@ -27,13 +27,7 @@ mb(x) = MullerBrown(x...)
 
 mbpolar(r,theta) = MullerBrown(r*cos(theta)-0.3,r*sin(theta)+1)
 
-
-tstpot(r,theta) = (cos(5r/π)+r) * cos(theta)
-tstgrid = PolarGrid{Point2D}(2,collect(range(0.01,2,60)),collect(range(0.0,2π,60)[1:end-1]),mbpolar)
-ps = getPoints(tstgrid)
-
-
-ts = gradDescent(tstgrid)
+# Array based conversions
 
 Makie.convert_arguments(P::GridBased, ps::AbstractVector{<: Point}) = 
     convert_arguments(P, [p.translation for p in ps], [p.energy for p in ps])
@@ -47,6 +41,20 @@ Makie.convert_arguments(P::PointBased, ts::AbstractVector{Polar}, args...) =
 Makie.convert_arguments(P::PointBased, ts::AbstractVector{Cartesian2D}, args...) =
     convert_arguments(P, [t.x for t in ts], [t.y for t in ts], args...)
 
+Makie.convert_arguments(P::Type{<:Scatter}, ps::AbstractVector{<: Point}) = 
+    convert_arguments(P, [p.translation for p in ps])
+
+Makie.convert_arguments(P::GridBased, ts::AbstractVector{Cartesian2D}, args...) =
+    convert_arguments(P, [t.x for t in ts], [t.y for t in ts], args...)
+
+Makie.convert_arguments(P::GridBased, ts::AbstractVector{Polar}, args...) =
+    convert_arguments(P, [t.polar for t in ts], [t.radius for t in ts], args...)
+
+Makie.convert_arguments(P::Type{<:Surface}, ts::AbstractVector{Cartesian2D}, args...) =
+    convert_arguments(P, [t.x for t in ts], [t.y for t in ts], args...)
+
+# Point based convesions
+
 Makie.convert_arguments(P::PointBased, p::Type{<: Point}) =
     convert_arguments(P, p.translation)
 
@@ -56,26 +64,26 @@ Makie.convert_arguments(P::PointBased, t::Polar, args...) =
 Makie.convert_arguments(P::PointBased, t::Cartesian2D, args...) =
     convert_arguments(P,t.x, t.y, args...)
 
-Makie.convert_arguments(P::Type{<:Scatter}, ps::AbstractVector{<: Point}) = 
-    convert_arguments(P, [p.translation for p in ps])
-
-Makie.convert_arguments(P::GridBased, ts::AbstractVector{Cartesian2D}, args...) =
-    convert_arguments(P, [t.x for t in ts], [t.y for t in ts], args...)
-
-Makie.convert_arguments(P::Type{<:Surface}, ts::AbstractVector{Cartesian2D}, args...) =
-    convert_arguments(P, [t.x for t in ts], [t.y for t in ts], args...)
-
 Makie.convert_arguments(P::Type{<:Scatter}, p::Point2D, args...) =
-    convert_arguments(P, [p.translation.x], [p.translation.y], args...)
+    convert_arguments(P, p.translation, args...)
 
 
 GLMakie.activate!()
+
+tstgrid = makePolarGrid(range(0.01,2,300),300,mbpolar,"Polar Muller Brown")
+ps = getPoints(tstgrid)
+
+
+ts = gradDescent(tstgrid)
+
 
 f1 = Figure(size=(1600,900), fontsize=40)
 ax = PolarAxis(f1[1,1], title = "Polar coordinates")
 ax2 = PolarAxis(f1[1,2], title = "Polar coordinates")
 
-p1 = voronoiplot!(ax,collect(keys(ts.gridpoints)),colorrange=(-150,75),markersize = 0,highclip = :transparent,colormap = :lipari, strokewidth = 0.01)
+#p1 = voronoiplot!(ax,ts.grid.points,colorrange=(-150,75),markersize = 0,highclip = :transparent,colormap = :lipari, strokewidth = 0.01)
+p1 = contourf!(ax,ts.grid.points,colormap = :lipari,levels = range(-150,75,50))
+
 translate!(p1,0,0,-1000)
 
 for minimum in ts.minima
