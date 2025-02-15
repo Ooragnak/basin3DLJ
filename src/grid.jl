@@ -1,11 +1,10 @@
-using SparseArrays
 using LinearAlgebra
 using Printf
 using ProgressMeter
 
 abstract type Grid{T} end
 
-abstract type Point end
+abstract type AbstractPoint{T} end
 
 abstract type Position end
 
@@ -31,39 +30,35 @@ struct Cartesian3D <: Position
     z::Float64
 end
 
-struct Point4D <: Point
+struct PointRot{T} <: AbstractPoint{T}
     rotation::Tuple{Float64,Float64,Float64,Float64}
-    translation::Position
+    translation::T
     energy::Float64
 end
 
-struct Point3D <: Point
-    translation::Position
+
+struct Point{T} <: AbstractPoint{T}
+    translation::T
     energy::Float64
 end
 
-struct Point2D <: Point
-    translation::Position
-    energy::Float64
-end
-
-struct Cartesian2DIndex <: Point
+struct Index{Cartesian2D} <: AbstractPoint{Cartesian2D}
     x::Int
     y::Int
 end
 
-struct PointGrid{T <: Point} <: Grid{T}
+struct PointGrid{K <: AbstractPoint} <: Grid{K}
     dim::Float64
-    points::Vector{T}
-    distances::AbstractDict{T,AbstractVector{Tuple{Int64,Float64}}}
+    points::Vector{K}
+    distances::AbstractDict{K,AbstractVector{Tuple{Int64,Float64}}}
     properties::AbstractString
 end
 
 """
 Data structure encoding the basins of attraction \n
-Gridpoints: Point => (Next Point, Reached Minimum)
+Gridpoints: AbstractPoint => (Next Point, Reached Minimum)
 """
-mutable struct Basin{T <: Point}
+mutable struct Basin{T <: AbstractPoint}
     const grid::Grid
     minima::Vector{T}
     gridpoints::Dict{T,Tuple{T,T}} 
@@ -77,10 +72,10 @@ Base.show(io::IO, ::MIME"text/plain",   k::Cartesian2D) = print(io, "Cartesian2D
 Base.show(io::IO,                       k::Cartesian2D) = print(io, pretty(k))
 Base.show(io::IO, ::MIME"text/plain",   k::Cartesian3D) = print(io, "Cartesian3D(x,y,k):\n   ", k)
 Base.show(io::IO,                       k::Cartesian3D) = print(io, pretty(k))
-Base.show(io::IO,                       k::Cartesian2DIndex) = print(io, "($(k.x), $(k.y))")
+Base.show(io::IO,                       k::Index) = print(io, "($(k.x), $(k.y))")
 
-Base.show(io::IO, ::MIME"text/plain",   k::T) where {T <: Point} = print(io, "$T:\n   ", k)
-Base.show(io::IO,                       k::T) where {T <: Point} = print(io, "(E = $(k.energy), $(k.translation))")
+Base.show(io::IO, ::MIME"text/plain",   k::T) where {T <: AbstractPoint} = print(io, "$T:\n   ", k)
+Base.show(io::IO,                       k::T) where {T <: AbstractPoint} = print(io, "(E = $(k.energy), $(k.translation))")
 
 Base.show(io::IO, ::MIME"text/plain",   k::PointGrid) = print(io, "$(typeof(k)): $(k.properties) \npoints:    ", pretty(k.points),"\ndistances: $(typeof(k.distances)) with $(length(keys(k.distances))) entries")
 Base.show(io::IO, ::MIME"text/plain",   k::Basin) = print(io, "$(typeof(k)) with $(length(k.minima)) basins \ngrid:          $(typeof(k.grid)) \n ├─properties: ", k.grid.properties,"\n ├─points:     ", pretty(k.grid.points),"\n └─distances:  $(typeof(k.grid.distances)) with $(length(keys(k.grid.distances))) entries \ngridpoints:    $(typeof(k.gridpoints)) with $(length(keys(k.gridpoints))) entries \nminima:      ", string(["\n$(getBasinSize(k,m)) points -> $(pretty(m,6))" for m in k.minima]...))
@@ -94,7 +89,7 @@ pretty(k::Cartesian2D, precision = 16) = "(x = $(round(k.x,sigdigits=precision))
 pretty(k::Point, precision = 16) = "(E = $(round(k.energy,sigdigits=precision)), $(pretty(k.translation,precision))"
 
 
-pretty(ks::AbstractArray{T}) where {T <: Point} = "$(length(ks))-element $(typeof(ks)) with global energy minimum E = $(minimum(k.energy for k in ks)), $(pretty([k.translation for k in ks]))" 
+pretty(ks::AbstractArray{T}) where {T <: AbstractPoint} = "$(length(ks))-element $(typeof(ks)) with global energy minimum E = $(minimum(k.energy for k in ks)), $(pretty([k.translation for k in ks]))" 
 pretty(ks::AbstractArray{T}) where {T <: Union{Polar, Spherical}} = "contains $(length(unique([k.r for k in ks]))) radii between $(minimum(unique([k.r for k in ks]))) and $(maximum(unique([k.r for k in ks])))" 
 pretty(ks::AbstractArray{T}) where {T <: Union{Cartesian2D}} = "contains $(length(unique([k.x for k in ks]))) x-values between $(minimum(unique([k.x for k in ks]))) and $(maximum(unique([k.x for k in ks]))), contains $(length(unique([k.y for k in ks]))) y-values between $(minimum(unique([k.y for k in ks]))) and $(maximum(unique([k.y for k in ks])))" 
 
@@ -113,11 +108,14 @@ end
 
 distance(t1::Cartesian2D,t2::Cartesian2D) = sqrt((t1.x - t2.x)^2 + (t1.y - t2.y)^2)
 distance(t1::Cartesian3D,t2::Cartesian3D) = sqrt((t1.x - t2.x)^2 + (t1.y - t2.y)^2 + + (t1.z - t2.z)^2)
-distance(p1::Point,p2::Point) = distance(p1.translation,p2.translation)
+distance(p1::Point,p2::AbstractPoint) = distance(p1.translation,p2.translation)
 
 toCartesian(t::Polar) = Cartesian2D(t.r*cos(t.θ),t.r*sin(t.θ))
 toCartesian(t::Spherical) = Cartesian3D(t.r*sin(t.θ)*cos(t.ϕ),t.r*sin(t.θ)*sin(t.ϕ),t.r*cos(t.θ))
 toPolar(t::Cartesian2D) = Polar(hypot(t.x,t.y),atan2(y,x))
+toCartesian(t::Cartesian2D) = t
+toCartesian(t::Cartesian3D) = t
+toPolar(t::Polar) = t
 
 function toSpherical(x,y,z)
     r = sqrt(x^2 + y^2 + z^2)
@@ -142,7 +140,7 @@ function toSpherical(x,y,z)
     return r,θ,ϕ
 end
 
-function distance(p1::Point4D,p2::Point4D)
+function distance(p1::PointRot,p2::PointRot)
     return distance(p1.translation,p2.translation) + acos(2*dot(p1.rotation,p2.rotation) -1)
 end
 
@@ -150,19 +148,19 @@ function getPoints(grid::PointGrid)
     return grid.points
 end
 
-function getNeighbors(grid::PointGrid,point::Point)
+function getNeighbors(grid::PointGrid,point::AbstractPoint)
     g = grid.distances[point]
     return grid.points[first.(g)], last.(g)
 end
 
 
-function findClosestGridPoint(grid::PointGrid,point::Point)
+function findClosestGridPoint(grid::PointGrid,point::AbstractPoint)
     @assert eltype(grid.points) == typeof(point)
     closest = argmin(distance.(grid.points,Ref(point)))
     return grid.points[closest]
 end
 
-function tracePath(basin::Basin,startingPosition::T) where {T <: Point}
+function tracePath(basin::Basin,startingPosition::T) where {T <: AbstractPoint}
     current = findClosestGridPoint(basin.grid, startingPosition)
     path = T[]
     next = basin.gridpoints[current][1]
@@ -174,7 +172,7 @@ function tracePath(basin::Basin,startingPosition::T) where {T <: Point}
     return path
 end
 
-function gradDescent(grid::Grid{T}) where {T <: Point}
+function gradDescent(grid::Grid{T}) where {T <: AbstractPoint}
     minima = T[]
     gridpoints = Dict{T,Tuple{T,T}}()
     sizehint!(gridpoints,length(getPoints(grid)))
@@ -225,8 +223,8 @@ function makeCartesianGrid(xs,ys,V,properties;diagonal=true)
     xdim = length(xs)
     ydim = length(ys)
 
-    points = [Point2D(Cartesian2D(x,y),V(x,y)) for x in xs, y in ys]
-    distances = Dict{Point2D,AbstractVector{Tuple{Int64,Float64}}}()
+    points = [Point(Cartesian2D(x,y),V(x,y)) for x in xs, y in ys]
+    distances = Dict{Point{Cartesian2D},AbstractVector{Tuple{Int64,Float64}}}()
     sizehint!(distances,xdim*ydim)
 
     progress = Progress(xdim*ydim,desc = "Generating grid:", dt=0.2, barglyphs=BarGlyphs("[=> ]"), barlen=50)
@@ -250,7 +248,7 @@ function makeCartesianGrid(xs,ys,V,properties;diagonal=true)
         next!(progress; showvalues = generate_progress(arg1))
     end
 
-    return PointGrid{Point2D}(2,vec(points),distances,properties)
+    return PointGrid{Point{Cartesian2D}}(2,vec(points),distances,properties)
 end
 
 """
@@ -261,8 +259,8 @@ function makePolarGrid(rs,θlen,V,properties)
     rdim = length(rs)
     θdim = length(θs)
 
-    points = [Point2D(Polar(r,θ),V(r,θ)) for r in rs, θ in θs]
-    distances = Dict{Point2D,AbstractVector{Tuple{Int64,Float64}}}()
+    points = [Point(Polar(r,θ),V(r,θ)) for r in rs, θ in θs]
+    distances = Dict{Point{Polar},AbstractVector{Tuple{Int64,Float64}}}()
     sizehint!(distances,rdim*θdim)
 
 
@@ -285,10 +283,10 @@ function makePolarGrid(rs,θlen,V,properties)
         next!(progress; showvalues = generate_progress(arg1))
     end
 
-    return PointGrid{Point2D}(2,vec(points),distances,properties)
+    return PointGrid{Point{Polar}}(2,vec(points),distances,properties)
 end
 
-function getBasinSize(basin::Basin,minimum::Point)
+function getBasinSize(basin::Basin,minimum::AbstractPoint)
     size = 0
     for g in keys(basin.gridpoints)
         if basin.gridpoints[g][2] == minimum
@@ -298,7 +296,7 @@ function getBasinSize(basin::Basin,minimum::Point)
     return size
 end
 
-function findMinimumEnergyPaths(basin::Basin,minimum::Point)
+function findMinimumEnergyPaths(basin::Basin,minimum::AbstractPoint)
     @assert minimum in basin.minima
     branchBorder = [minimum]
     currentPoint = minimum
