@@ -59,7 +59,6 @@ struct PointGrid{T <: Point} <: Grid{T}
     properties::AbstractString
 end
 
-
 """
 Data structure encoding the basins of attraction \n
 Gridpoints: Point => (Next Point, Reached Minimum)
@@ -69,6 +68,40 @@ mutable struct Basin{T <: Point}
     minima::Vector{T}
     gridpoints::Dict{T,Tuple{T,T}} 
 end
+
+Base.show(io::IO, ::MIME"text/plain",   k::Polar) = print(io, "Polar:\n   ", k)
+Base.show(io::IO,                       k::Polar) = print(io, pretty(k))
+Base.show(io::IO, ::MIME"text/plain",   k::Spherical) = print(io, "Spherical:\n   ", k)
+Base.show(io::IO,                       k::Spherical) = print(io, pretty(k))
+Base.show(io::IO, ::MIME"text/plain",   k::Cartesian2D) = print(io, "Cartesian2D(x,y):\n   ", k)
+Base.show(io::IO,                       k::Cartesian2D) = print(io, pretty(k))
+Base.show(io::IO, ::MIME"text/plain",   k::Cartesian3D) = print(io, "Cartesian3D(x,y,k):\n   ", k)
+Base.show(io::IO,                       k::Cartesian3D) = print(io, pretty(k))
+Base.show(io::IO,                       k::Cartesian2DIndex) = print(io, "($(k.x), $(k.y))")
+
+Base.show(io::IO, ::MIME"text/plain",   k::T) where {T <: Point} = print(io, "$T:\n   ", k)
+Base.show(io::IO,                       k::T) where {T <: Point} = print(io, "(E = $(k.energy), $(k.translation))")
+
+Base.show(io::IO, ::MIME"text/plain",   k::PointGrid) = print(io, "$(typeof(k)): $(k.properties) \npoints:    ", pretty(k.points),"\ndistances: $(typeof(k.distances)) with $(length(keys(k.distances))) entries")
+Base.show(io::IO, ::MIME"text/plain",   k::Basin) = print(io, "$(typeof(k)) with $(length(k.minima)) basins \n$(typeof(k.grid)): $(k.grid.properties) \npoints:    ", pretty(k.grid.points),"\ndistances: $(typeof(k.grid.distances)) with $(length(keys(k.grid.distances))) entries \nminima:  ", string(["\n$(getBasinSize(k,m)) points -> $(pretty(m,6))" for m in k.minima]...))
+
+``
+
+pretty(k::Polar, precision = 18) = "(r = $(round(k.r,sigdigits=precision)), θ = $(round(k.θ,sigdigits=precision)))"
+pretty(k::Spherical, precision = 16) = "(r = $(round(k.r,sigdigits=precision)), θ = $(round(k.θ,sigdigits=precision)), ϕ = $(round(k.ϕ,sigdigits=precision)))"
+pretty(k::Cartesian3D, precision = 16) = "(x = $(round(k.x,sigdigits=precision)), y = $(round(k.y,sigdigits=precision)), z = $(round(k.z,sigdigits=precision)))"
+pretty(k::Cartesian2D, precision = 16) = "(x = $(round(k.x,sigdigits=precision)), y = $(round(k.y,sigdigits=precision)))"
+pretty(k::Point, precision = 16) = "(E = $(round(k.energy,sigdigits=precision)), $(pretty(k.translation,precision))"
+
+
+pretty(ks::AbstractArray{T}) where {T <: Point} = "$(length(ks))-element $(typeof(ks)) with global energy minimum E = $(minimum(k.energy for k in ks)), $(pretty([k.translation for k in ks]))" 
+pretty(ks::AbstractArray{T}) where {T <: Union{Polar, Spherical}} = "contains $(length(unique([k.r for k in ks]))) radii between $(minimum(unique([k.r for k in ks]))) and $(maximum(unique([k.r for k in ks])))" 
+pretty(ks::AbstractArray{T}) where {T <: Union{Cartesian2D}} = "contains $(length(unique([k.x for k in ks]))) x-values between $(minimum(unique([k.x for k in ks]))) and $(maximum(unique([k.x for k in ks]))), contains $(length(unique([k.y for k in ks]))) y-values between $(minimum(unique([k.y for k in ks]))) and $(maximum(unique([k.y for k in ks])))" 
+
+
+
+
+
 
 function distance(t1::Spherical,t2::Spherical)
     return sqrt(t1.r^2 + t2.r^2 - 2*t1.r*t2.r*(sin(t1.θ) * sin(t2.θ) * cos(t1.ϕ - t2.ϕ) + cos(t1.θ) * cos(t2.θ)))
@@ -253,6 +286,16 @@ function makePolarGrid(rs,θlen,V,properties)
     end
 
     return PointGrid{Point2D}(2,vec(points),distances,properties)
+end
+
+function getBasinSize(basin::Basin,minimum::Point)
+    size = 0
+    for g in keys(basin.gridpoints)
+        if basin.gridpoints[g][2] == minimum
+            size += 1
+        end
+    end
+    return size
 end
 
 function findMinimumEnergyPaths(basin::Basin,minimum::Point)
