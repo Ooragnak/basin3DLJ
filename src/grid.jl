@@ -83,7 +83,7 @@ Base.show(io::IO, ::MIME"text/plain",   k::T) where {T <: Point} = print(io, "$T
 Base.show(io::IO,                       k::T) where {T <: Point} = print(io, "(E = $(k.energy), $(k.translation))")
 
 Base.show(io::IO, ::MIME"text/plain",   k::PointGrid) = print(io, "$(typeof(k)): $(k.properties) \npoints:    ", pretty(k.points),"\ndistances: $(typeof(k.distances)) with $(length(keys(k.distances))) entries")
-Base.show(io::IO, ::MIME"text/plain",   k::Basin) = print(io, "$(typeof(k)) with $(length(k.minima)) basins \n$(typeof(k.grid)): $(k.grid.properties) \npoints:    ", pretty(k.grid.points),"\ndistances: $(typeof(k.grid.distances)) with $(length(keys(k.grid.distances))) entries \nminima:  ", string(["\n$(getBasinSize(k,m)) points -> $(pretty(m,6))" for m in k.minima]...))
+Base.show(io::IO, ::MIME"text/plain",   k::Basin) = print(io, "$(typeof(k)) with $(length(k.minima)) basins \ngrid:          $(typeof(k.grid)) \n ├─properties: ", k.grid.properties,"\n ├─points:     ", pretty(k.grid.points),"\n └─distances:  $(typeof(k.grid.distances)) with $(length(keys(k.grid.distances))) entries \ngridpoints:    $(typeof(k.gridpoints)) with $(length(keys(k.gridpoints))) entries \nminima:      ", string(["\n$(getBasinSize(k,m)) points -> $(pretty(m,6))" for m in k.minima]...))
 
 ``
 
