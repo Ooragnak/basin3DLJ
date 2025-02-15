@@ -80,8 +80,6 @@ Base.show(io::IO,                       k::T) where {T <: AbstractPoint} = print
 Base.show(io::IO, ::MIME"text/plain",   k::PointGrid) = print(io, "$(typeof(k)): $(k.properties) \npoints:    ", pretty(k.points),"\ndistances: $(typeof(k.distances)) with $(length(keys(k.distances))) entries")
 Base.show(io::IO, ::MIME"text/plain",   k::Basin) = print(io, "$(typeof(k)) with $(length(k.minima)) basins \ngrid:          $(typeof(k.grid)) \n ├─properties: ", k.grid.properties,"\n ├─points:     ", pretty(k.grid.points),"\n └─distances:  $(typeof(k.grid.distances)) with $(length(keys(k.grid.distances))) entries \ngridpoints:    $(typeof(k.gridpoints)) with $(length(keys(k.gridpoints))) entries \nminima:      ", string(["\n$(getBasinSize(k,m)) points -> $(pretty(m,6))" for m in k.minima]...))
 
-``
-
 pretty(k::Polar, precision = 18) = "(r = $(round(k.r,sigdigits=precision)), θ = $(round(k.θ,sigdigits=precision)))"
 pretty(k::Spherical, precision = 16) = "(r = $(round(k.r,sigdigits=precision)), θ = $(round(k.θ,sigdigits=precision)), ϕ = $(round(k.ϕ,sigdigits=precision)))"
 pretty(k::Cartesian3D, precision = 16) = "(x = $(round(k.x,sigdigits=precision)), y = $(round(k.y,sigdigits=precision)), z = $(round(k.z,sigdigits=precision)))"
@@ -108,16 +106,17 @@ end
 
 distance(t1::Cartesian2D,t2::Cartesian2D) = sqrt((t1.x - t2.x)^2 + (t1.y - t2.y)^2)
 distance(t1::Cartesian3D,t2::Cartesian3D) = sqrt((t1.x - t2.x)^2 + (t1.y - t2.y)^2 + + (t1.z - t2.z)^2)
-distance(p1::Point,p2::AbstractPoint) = distance(p1.translation,p2.translation)
+distance(p1::Point{T},p2::Point) where {T <: Position} = distance(p1.translation,convert(T,p2.translation))
 
-toCartesian(t::Polar) = Cartesian2D(t.r*cos(t.θ),t.r*sin(t.θ))
-toCartesian(t::Spherical) = Cartesian3D(t.r*sin(t.θ)*cos(t.ϕ),t.r*sin(t.θ)*sin(t.ϕ),t.r*cos(t.θ))
-toPolar(t::Cartesian2D) = Polar(hypot(t.x,t.y),atan2(y,x))
-toCartesian(t::Cartesian2D) = t
-toCartesian(t::Cartesian3D) = t
-toPolar(t::Polar) = t
 
-function toSpherical(x,y,z)
+import Base: convert
+
+convert(::Type{Cartesian2D},t::Polar) = Cartesian2D(t.r*cos(t.θ),t.r*sin(t.θ))
+convert(::Type{Cartesian3D},t::Spherical) = Cartesian3D(t.r*sin(t.θ)*cos(t.ϕ),t.r*sin(t.θ)*sin(t.ϕ),t.r*cos(t.θ))
+convert(::Type{Polar},t::Cartesian2D) = Polar(hypot(t.x,t.y),atan2(y,x))
+
+function convert(::Type{Spherical},t::Spherical)
+    x, y, z = t.x, t.y, t.z
     r = sqrt(x^2 + y^2 + z^2)
     if r == 0
         return Cartesian3D(0,0,0)
@@ -231,10 +230,10 @@ function makeCartesianGrid(xs,ys,V,properties;diagonal=true)
     generate_progress(i) = [("Found adjacencies for",@sprintf "%6i / %6i points." i xdim*ydim)]
 
     for x1 in 1:1:length(xs), y1 in 1:1:length(ys)
-        arg1 = xdim*(y1-1)+x1
+        arg1 = LinearIndices((xdim,ydim))[x1,y1]
         neighbors = []
         for x2 in x1-1:1:x1+1, y2 in y1-1:1:y1+1
-            arg2 = xdim*(y2-1)+x2
+            arg2 = LinearIndices((xdim,ydim))[x1,y1,z1]
             if diagonal
                 if !(x2 == x1 && y2 == y1) && (1 <= x2 <= xdim && 1 <= y2 <= ydim)
                     push!(neighbors,(arg2,distance(points[arg2],points[arg1])))
@@ -249,6 +248,41 @@ function makeCartesianGrid(xs,ys,V,properties;diagonal=true)
     end
 
     return PointGrid{Point{Cartesian2D}}(2,vec(points),distances,properties)
+end
+
+function makeCartesianGrid(xs,ys,zs,V,properties;diagonal=true)
+    xdim = length(xs)
+    ydim = length(ys)
+    zdim = length(zs)
+    N = xdim*ydim*zdim
+
+
+    points = [Point(Cartesian3D(x,y,z),V(x,y,z)) for x in xs, y in ys, z in zs]
+    distances = Dict{Point{Cartesian3D},AbstractVector{Tuple{Int64,Float64}}}()
+    sizehint!(distances,N)
+
+    progress = Progress(N,desc = "Generating grid:", dt=0.2, barglyphs=BarGlyphs("[=> ]"), barlen=50)
+    generate_progress(i) = [("Found adjacencies for",@sprintf "%6i / %6i points." i N)]
+
+    for x1 in 1:1:length(xs), y1 in 1:1:length(ys), z1 in 1:1:length(zs)
+        arg1 = LinearIndices((xdim,ydim,zdim))[x1,y1,z1]
+        neighbors = []
+        for x2 in x1-1:1:x1+1, y2 in y1-1:1:y1+1, z2 in z1-1:1:z1+1
+            arg2 = LinearIndices((xdim,ydim,zdim))[x2,y2,z2]
+            if diagonal
+                if !(x2 == x1 && y2 == y1 && z2 == z1) && (1 <= x2 <= xdim && 1 <= y2 <= ydim && 1 <= z2 <= zdim)
+                    push!(neighbors,(arg2,distance(points[arg2],points[arg1])))
+                end
+            elseif sum([x2 == x1,y2 == y1,z2 == z1]) == 2 && (1 <= x2 <= xdim && 1 <= y2 <= ydim && 1 <= z2 <= zdim)
+                    push!(neighbors,(arg2,distance(points[arg2],points[arg1])))
+            end
+        end
+        push!(distances,points[x1,y1] => neighbors)
+
+        next!(progress; showvalues = generate_progress(arg1))
+    end
+
+    return PointGrid{Point{Cartesian3D}}(3,vec(points),distances,properties)
 end
 
 """
