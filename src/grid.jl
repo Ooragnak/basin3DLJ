@@ -243,7 +243,7 @@ function makeCartesianGrid(xs,ys,V,properties;diagonal=true)
         neighbors = []
         for x2 in x1-1:1:x1+1, y2 in y1-1:1:y1+1
             if (1 <= x2 <= xdim && 1 <= y2 <= ydim)
-                arg2 = LinearIndices((xdim,ydim))[x1,y1]
+                arg2 = LinearIndices((xdim,ydim))[x2,y2]
                 if diagonal
                     if !(x2 == x1 && y2 == y1)
                         push!(neighbors,(arg2,distance(points[arg2],points[arg1])))
