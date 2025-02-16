@@ -1,3 +1,4 @@
+using Base: Cartesian
 #PATH OF PROJECT DIR; contains folder like src and data
 rootPath = pwd()
 
@@ -27,19 +28,26 @@ mb(x) = MullerBrown(x...)
 
 mbpolar(r,theta) = MullerBrown(r*cos(theta)-0.3,r*sin(theta)+1)
 
+ringpot(r,θ, α = 3.0, γ = 3.0, χ₁ = 2.25, χ₂ = 4.5 ) = α * (r-γ)^2 + χ₁ * cos(2θ) -χ₂ * cos(4θ)
+
+
+
 # Array based conversions
 
 Makie.convert_arguments(P::GridBased, ps::AbstractVector{<: Point}) = 
     convert_arguments(P, [p.translation for p in ps], [p.energy for p in ps])
 
-Makie.convert_arguments(P::PointBased, ps::AbstractVector{<: Point}) = 
+Makie.convert_arguments(P::T, ps::AbstractVector{<: Point}) where {T <: Union{PointBased, GridBased}}= 
     convert_arguments(P, [p.translation for p in ps], [p.energy for p in ps])
 
 Makie.convert_arguments(P::PointBased, ts::AbstractVector{Polar}, args...) =
-    convert_arguments(P, [t.polar for t in ts], [t.radius for t in ts], args...)
+    convert_arguments(P, [t.θ for t in ts], [t.r for t in ts], args...)
 
 Makie.convert_arguments(P::PointBased, ts::AbstractVector{Cartesian2D}, args...) =
     convert_arguments(P, [t.x for t in ts], [t.y for t in ts], args...)
+
+Makie.convert_arguments(P::PointBased, ts::AbstractVector{Cartesian3D}, args...) =
+    convert_arguments(P, [t.x for t in ts], [t.y for t in ts], [t.z for t in ts], args...)
 
 Makie.convert_arguments(P::Type{<:Scatter}, ps::AbstractVector{<: Point}) = 
     convert_arguments(P, [p.translation for p in ps])
@@ -47,8 +55,11 @@ Makie.convert_arguments(P::Type{<:Scatter}, ps::AbstractVector{<: Point}) =
 Makie.convert_arguments(P::GridBased, ts::AbstractVector{Cartesian2D}, args...) =
     convert_arguments(P, [t.x for t in ts], [t.y for t in ts], args...)
 
+Makie.convert_arguments(P::GridBased, ts::AbstractVector{Cartesian2D}, args...) =
+    convert_arguments(P, [t.x for t in ts], [t.y for t in ts],[t.z for t in ts], args...)
+
 Makie.convert_arguments(P::GridBased, ts::AbstractVector{Polar}, args...) =
-    convert_arguments(P, [t.polar for t in ts], [t.radius for t in ts], args...)
+    convert_arguments(P, [t.θ for t in ts], [t.r for t in ts], args...)
 
 Makie.convert_arguments(P::Type{<:Surface}, ts::AbstractVector{Cartesian2D}, args...) =
     convert_arguments(P, [t.x for t in ts], [t.y for t in ts], args...)
@@ -59,18 +70,23 @@ Makie.convert_arguments(P::PointBased, p::Type{<: Point}) =
     convert_arguments(P, p.translation)
 
 Makie.convert_arguments(P::PointBased, t::Polar, args...) =
-    convert_arguments(P, t.polar, t.radius, args...)
+    convert_arguments(P, t.θ, t.r, args...)
 
 Makie.convert_arguments(P::PointBased, t::Cartesian2D, args...) =
     convert_arguments(P,t.x, t.y, args...)
 
-Makie.convert_arguments(P::Type{<:Scatter}, p::Point2D, args...) =
+Makie.convert_arguments(P::PointBased, t::Cartesian3D, args...) =
+    convert_arguments(P,t.x, t.y, t.z, args...)
+
+Makie.convert_arguments(P::Type{<:Scatter}, p::Point, args...) =
     convert_arguments(P, p.translation, args...)
 
 
 GLMakie.activate!()
 
-tstgrid = makePolarGrid(range(0.01,2,300),300,mbpolar,"Polar Muller Brown")
+#tstgrid = makePolarGrid(range(0.01,2,200),200,mbpolar,"Polar Muller Brown")
+tstgrid = makePolarGrid(range(0.1,5,300),300,ringpot,"Ring Potential",nudge = true)
+
 ps = getPoints(tstgrid)
 
 
@@ -82,19 +98,20 @@ ax = PolarAxis(f1[1,1], title = "Polar coordinates")
 ax2 = PolarAxis(f1[1,2], title = "Polar coordinates")
 
 #p1 = voronoiplot!(ax,ts.grid.points,colorrange=(-150,75),markersize = 0,highclip = :transparent,colormap = :lipari, strokewidth = 0.01)
-p1 = contourf!(ax,ts.grid.points,colormap = :lipari,levels = range(-150,75,50))
+#p1 = contourf!(ax,ts.grid.points,colormap = :lipari,levels = range(-150,75,50))
+p1 = contourf!(ax,ts.grid.points,colormap = :lipari,levels=75)
 
 translate!(p1,0,0,-1000)
 
 for minimum in ts.minima
     tmin = filter(x -> ts.gridpoints[x][2] == minimum, collect(keys(ts.gridpoints)))
-    scatter!(ax2,[t.translation.polar for t in tmin], [t.translation.radius for t in tmin],markersize = 8)
+    scatter!(ax2,[t.translation.θ for t in tmin], [t.translation.r for t in tmin],markersize = 8)
 end
 
-p2 = scatter!(ax2,[t.translation.polar for t in ts.minima], [t.translation.radius for t in ts.minima], color = :red)
+p2 = scatter!(ax2,[t.translation.θ for t in ts.minima], [t.translation.r for t in ts.minima], color = :red)
 
 
-Colorbar(f1[1,3],p1)
+Colorbar(f1[1,0],p1)
 
 display(f1)
 
@@ -156,3 +173,55 @@ for path in paths
     plot!(ax3,[p.energy for p in path])
 end
 
+function pot3(x,y,z) 
+    r, θ, ϕ = toSpherical(x,y,z)
+    return ringpot(r,θ) * (sin(ϕ)^2 + 1)
+end
+
+newpot  = makeCartesianGrid(range(-4.01,4,150),range(-4.01,4,150),range(-4.01,4,150),pot3,"Test",diagonal=false)
+newbasin = gradDescent(newpot)
+
+paths3d = []
+transitions2 = findMinimumEnergyPaths.(Ref(newbasin),newbasin.minima)
+
+f3d = Figure(size=(2560,1440), fontsize=40)
+ax3d = Axis3(f3d[1,1], title = "Minimum energy paths of grid transition")
+ax3d2 = Axis3(f3d[1,2], title = "Isosurface of Potential")
+
+s1 = Slider(f3d[1,2], range = -7:0.01:10, startvalue = 0.0,horizontal=false)
+
+function toArray(ps::PointGrid{Point{Cartesian3D}})
+    xlen = length(unique(p.translation.x for p in ps.points))
+    ylen = length(unique(p.translation.y for p in ps.points))
+    zlen = length(unique(p.translation.z for p in ps.points))
+    A = reshape(ps.points,(xlen,ylen,zlen))
+    return A
+end
+
+
+isoval = lift(s1.value) do x 
+    x
+end
+
+for (i,m) in enumerate(newbasin.minima)
+    A = toArray(newpot)
+    a = [newbasin.gridpoints[p][2] == m ? p.energy : NaN for p in A]
+    volume!(ax3d,(-4,4),(-4,4),(-4,4),a, algorithm = :iso, isovalue = isoval, isorange = 0.2 ,colormap = fill(Makie.wong_colors()[i],100) , interpolate = true)
+end
+
+volume!(ax3d,(-4,4),(-4,4),(-4,4),[p.energy for p in toArray(newpot)], algorithm = :iso, isovalue = isoval, isorange = 0.1 ,colormap = :lipari, interpolate = true)
+
+for m in newbasin.minima 
+    scatter!(ax3d,m,markersize = 15, marker=:xcross, label = pretty(m,3))
+end
+
+for t in transitions2
+    for p in t
+        path = reverse(tracePath(newbasin,p[1]))
+        append!(path, tracePath(newbasin,p[2]))
+        scatter!(ax3d,path,markersize = 4,color=:grey)
+        push!(paths3d,path)
+    end
+end
+
+display(f3d)
