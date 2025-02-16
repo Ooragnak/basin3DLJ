@@ -65,7 +65,7 @@ mutable struct Basin{T <: AbstractPoint}
 end
 
 #----------------------------------------------------------------
-#   PRETTY PRINTING FOR DEFINED TYPES
+#   PRETTY PRINTING FOR DEFINED TYPES (COMMENT OR REPAIR IF PRINTING FAILS)
 #----------------------------------------------------------------
 
 Base.show(io::IO, ::MIME"text/plain",   k::Polar) = print(io, "Polar:\n   ", k)
@@ -93,6 +93,7 @@ pretty(k::Point, precision = 16) = "(E = $(round(k.energy,sigdigits=precision)),
 pretty(ks::AbstractArray{T}) where {T <: AbstractPoint} = "$(length(ks))-element $(typeof(ks)) with global energy minimum E = $(minimum(k.energy for k in ks)), $(pretty([k.translation for k in ks]))" 
 pretty(ks::AbstractArray{T}) where {T <: Union{Polar, Spherical}} = "contains $(length(unique([k.r for k in ks]))) radii between $(minimum(unique([k.r for k in ks]))) and $(maximum(unique([k.r for k in ks])))" 
 pretty(ks::AbstractArray{T}) where {T <: Union{Cartesian2D}} = "contains $(length(unique([k.x for k in ks]))) x-values between $(minimum(unique([k.x for k in ks]))) and $(maximum(unique([k.x for k in ks]))), contains $(length(unique([k.y for k in ks]))) y-values between $(minimum(unique([k.y for k in ks]))) and $(maximum(unique([k.y for k in ks])))" 
+pretty(ks::AbstractArray{T}) where {T <: Union{Cartesian3D}} = "contains $(length(unique([k.x for k in ks]))) x-values between $(minimum(unique([k.x for k in ks]))) and $(maximum(unique([k.x for k in ks]))), contains $(length(unique([k.y for k in ks]))) y-values between $(minimum(unique([k.y for k in ks]))) and $(maximum(unique([k.y for k in ks]))), contains $(length(unique([k.z for k in ks]))) z-values between $(minimum(unique([k.z for k in ks]))) and $(maximum(unique([k.z for k in ks])))" 
 
 #----------------------------------------------------------------
 #   COORDINATE TRANSFORMATIONS
@@ -264,7 +265,6 @@ function makeCartesianGrid(xs,ys,zs,V,properties;diagonal=true)
     zdim = length(zs)
     N = xdim*ydim*zdim
 
-
     points = [Point(Cartesian3D(x,y,z),V(x,y,z)) for x in xs, y in ys, z in zs]
     distances = Dict{Point{Cartesian3D},AbstractVector{Tuple{Int64,Float64}}}()
     sizehint!(distances,N)
@@ -276,16 +276,18 @@ function makeCartesianGrid(xs,ys,zs,V,properties;diagonal=true)
         arg1 = LinearIndices((xdim,ydim,zdim))[x1,y1,z1]
         neighbors = []
         for x2 in x1-1:1:x1+1, y2 in y1-1:1:y1+1, z2 in z1-1:1:z1+1
-            arg2 = LinearIndices((xdim,ydim,zdim))[x2,y2,z2]
-            if diagonal
-                if !(x2 == x1 && y2 == y1 && z2 == z1) && (1 <= x2 <= xdim && 1 <= y2 <= ydim && 1 <= z2 <= zdim)
-                    push!(neighbors,(arg2,distance(points[arg2],points[arg1])))
+            if (1 <= x2 <= xdim && 1 <= y2 <= ydim && 1 <= z2 <= zdim)
+                arg2 = LinearIndices((xdim,ydim,zdim))[x2,y2,z2]
+                if diagonal
+                    if !(x2 == x1 && y2 == y1 && z2 == z1)
+                        push!(neighbors,(arg2,distance(points[arg2],points[arg1])))
+                    end
+                elseif sum([x2 == x1,y2 == y1,z2 == z1]) == 2
+                        push!(neighbors,(arg2,distance(points[arg2],points[arg1])))
                 end
-            elseif sum([x2 == x1,y2 == y1,z2 == z1]) == 2 && (1 <= x2 <= xdim && 1 <= y2 <= ydim && 1 <= z2 <= zdim)
-                    push!(neighbors,(arg2,distance(points[arg2],points[arg1])))
             end
         end
-        push!(distances,points[x1,y1] => neighbors)
+        push!(distances,points[x1,y1,z1] => neighbors)
 
         next!(progress; showvalues = generate_progress(arg1))
     end
