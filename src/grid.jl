@@ -64,6 +64,10 @@ mutable struct Basin{T <: AbstractPoint}
     gridpoints::Dict{T,Tuple{T,T}} 
 end
 
+#----------------------------------------------------------------
+#   PRETTY PRINTING FOR DEFINED TYPES
+#----------------------------------------------------------------
+
 Base.show(io::IO, ::MIME"text/plain",   k::Polar) = print(io, "Polar:\n   ", k)
 Base.show(io::IO,                       k::Polar) = print(io, pretty(k))
 Base.show(io::IO, ::MIME"text/plain",   k::Spherical) = print(io, "Spherical:\n   ", k)
@@ -86,37 +90,21 @@ pretty(k::Cartesian3D, precision = 16) = "(x = $(round(k.x,sigdigits=precision))
 pretty(k::Cartesian2D, precision = 16) = "(x = $(round(k.x,sigdigits=precision)), y = $(round(k.y,sigdigits=precision)))"
 pretty(k::Point, precision = 16) = "(E = $(round(k.energy,sigdigits=precision)), $(pretty(k.translation,precision))"
 
-
 pretty(ks::AbstractArray{T}) where {T <: AbstractPoint} = "$(length(ks))-element $(typeof(ks)) with global energy minimum E = $(minimum(k.energy for k in ks)), $(pretty([k.translation for k in ks]))" 
 pretty(ks::AbstractArray{T}) where {T <: Union{Polar, Spherical}} = "contains $(length(unique([k.r for k in ks]))) radii between $(minimum(unique([k.r for k in ks]))) and $(maximum(unique([k.r for k in ks])))" 
 pretty(ks::AbstractArray{T}) where {T <: Union{Cartesian2D}} = "contains $(length(unique([k.x for k in ks]))) x-values between $(minimum(unique([k.x for k in ks]))) and $(maximum(unique([k.x for k in ks]))), contains $(length(unique([k.y for k in ks]))) y-values between $(minimum(unique([k.y for k in ks]))) and $(maximum(unique([k.y for k in ks])))" 
 
+#----------------------------------------------------------------
+#   COORDINATE TRANSFORMATIONS
+#----------------------------------------------------------------
 
+# Analytical transformations
 
+toCartesian(r,θ) = r*cos(θ), r*sin(θ)
+toCartesian(r,θ,ϕ) = r*sin(θ)*cos(ϕ),r*sin(θ)*sin(ϕ),r*cos(θ)
+toPolar(x,y) = hypot(x,y),atan2(y,x)
 
-
-
-function distance(t1::Spherical,t2::Spherical)
-    return sqrt(t1.r^2 + t2.r^2 - 2*t1.r*t2.r*(sin(t1.θ) * sin(t2.θ) * cos(t1.ϕ - t2.ϕ) + cos(t1.θ) * cos(t2.θ)))
-end
-
-function distance(t1::Polar,t2::Polar)
-    return sqrt(t1.r^2 + t2.r^2 - 2*t1.r*t2.r * cos(t1.θ - t2.θ))
-end
-
-distance(t1::Cartesian2D,t2::Cartesian2D) = sqrt((t1.x - t2.x)^2 + (t1.y - t2.y)^2)
-distance(t1::Cartesian3D,t2::Cartesian3D) = sqrt((t1.x - t2.x)^2 + (t1.y - t2.y)^2 + + (t1.z - t2.z)^2)
-distance(p1::Point{T},p2::Point) where {T <: Position} = distance(p1.translation,convert(T,p2.translation))
-
-
-import Base: convert
-
-convert(::Type{Cartesian2D},t::Polar) = Cartesian2D(t.r*cos(t.θ),t.r*sin(t.θ))
-convert(::Type{Cartesian3D},t::Spherical) = Cartesian3D(t.r*sin(t.θ)*cos(t.ϕ),t.r*sin(t.θ)*sin(t.ϕ),t.r*cos(t.θ))
-convert(::Type{Polar},t::Cartesian2D) = Polar(hypot(t.x,t.y),atan2(y,x))
-
-function convert(::Type{Spherical},t::Spherical)
-    x, y, z = t.x, t.y, t.z
+function toSpherical(x, y, z)
     r = sqrt(x^2 + y^2 + z^2)
     if r == 0
         return Cartesian3D(0,0,0)
@@ -139,9 +127,29 @@ function convert(::Type{Spherical},t::Spherical)
     return r,θ,ϕ
 end
 
-function distance(p1::PointRot,p2::PointRot)
-    return distance(p1.translation,p2.translation) + acos(2*dot(p1.rotation,p2.rotation) -1)
-end
+# Coordinate transformations for defined types
+
+import Base: convert
+
+convert(::Type{Cartesian2D},t::Polar) = Cartesian2D(toCartesian(t.r,t.θ)...)
+convert(::Type{Cartesian3D},t::Spherical) = Cartesian3D(toCartesian(t.r,t.θ,t.ϕ)...)
+convert(::Type{Polar},t::Cartesian2D) = Polar(toPolar(t.x,t.y)...)
+convert(::Type{Spherical},t::Spherical) = Spherical(toSpherical(t.x, t.y, t.z)...)
+
+#----------------------------------------------------------------
+#   DISTANCE CALCULATIONS
+#----------------------------------------------------------------
+
+distance(t1::Cartesian2D,t2::Cartesian2D) = sqrt((t1.x - t2.x)^2 + (t1.y - t2.y)^2)
+distance(t1::Cartesian3D,t2::Cartesian3D) = sqrt((t1.x - t2.x)^2 + (t1.y - t2.y)^2 + + (t1.z - t2.z)^2)
+distance(t1::Polar,t2::Polar) = sqrt(t1.r^2 + t2.r^2 - 2*t1.r*t2.r * cos(t1.θ - t2.θ))
+distance(t1::Spherical,t2::Spherical) = sqrt(t1.r^2 + t2.r^2 - 2*t1.r*t2.r*(sin(t1.θ) * sin(t2.θ) * cos(t1.ϕ - t2.ϕ) + cos(t1.θ) * cos(t2.θ)))
+distance(p1::Point{T},p2::Point) where {T <: Position} = distance(p1.translation,convert(T,p2.translation))
+distance(p1::PointRot,p2::PointRot) = distance(p1.translation,p2.translation) + acos(2*dot(p1.rotation,p2.rotation) -1)
+
+#----------------------------------------------------------------
+#   OPERATIONS ON GRIDS / BASINS
+#----------------------------------------------------------------
 
 function getPoints(grid::PointGrid)
     return grid.points
