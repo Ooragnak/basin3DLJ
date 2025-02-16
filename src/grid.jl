@@ -1,6 +1,11 @@
 using LinearAlgebra
 using Printf
 using ProgressMeter
+using PyCall
+using SciPy
+using NPZ
+using SparseArrays
+
 
 abstract type Grid{T} end
 
@@ -394,4 +399,53 @@ function findMinimumEnergyPaths(basin::Basin,minimum::AbstractPoint)
     end
     finish!(progress)
     return foundTransitionPoints
+end
+
+function parseMolgriGrid(folder::AbstractString,V,properties)
+
+    grid = transpose(npzread(string(folder,"_fullgrid.npy")))
+
+
+    if iszero(grid[4:end,1])
+        rot = false
+
+        dist = SciPy.sparse.find(SciPy.sparse.load_npz(string(folder,"adjacency_only_position.npz")))
+        dists = SparseArrays.sparse(dist[1] .+= 1,dist[2] .+= 1,dist[3] .+= 1)
+
+        points = Point{Cartesian3D}[]
+        for r in unique(eachcol(grid))
+            push!(points,Point{Cartesian3D}(Cartesian3D(r[1:3]...),V(r[1:3]...)))
+        end
+
+        distances = Dict{Point{Cartesian3D},AbstractVector{Tuple{Int64,Float64}}}()
+        sizehint!(distances,length(points))
+
+        for (i,p) in enumerate(unique(points))
+            neighbors = rowvals(dists[i,:])
+            push!(distances,p => tuple.(neighbors,Array{Float64}(dists[i,neighbors])))
+        end
+    else
+        rot = true
+        dist = SciPy.sparse.find(SciPy.sparse.load_npz(string(folder,"distances_array.npz")))
+        dists = SparseArrays.sparse(dist[1] .+= 1,dist[2] .+= 1,dist[3] .+= 1)
+
+        points = PointRot{Cartesian3D}[]
+        for r in unique(eachcol(grid))
+            push!(points,PointRot{Cartesian3D}(Tuple(r[4:7]),Cartesian3D(r[1:3]...),V(r[1:3]...)))
+        end
+
+        distances = Dict{PointRot{Cartesian3D},AbstractVector{Tuple{Int64,Float64}}}()
+        sizehint!(distances,length(points))
+        for (i,p) in enumerate(points)
+            neighbors = rowvals(dists[i,:])
+            push!(distances,p => tuple.(neighbors,Array{Float64}(dists[i,neighbors])))
+        end
+    end
+
+    if !rot
+        return PointGrid{Point{Cartesian3D}}(3,points,distances,properties)
+    else
+        return PointGrid{PointRot{Cartesian3D}}(3,points,distances,properties)
+    end
+
 end
