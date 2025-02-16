@@ -1,4 +1,3 @@
-using Base: Cartesian
 #PATH OF PROJECT DIR; contains folder like src and data
 rootPath = pwd()
 
@@ -12,6 +11,9 @@ macro ignore(args...) end
 
 include(joinpath(rootPath, "src/theme.jl"))
 include(joinpath(rootPath, "src/grid.jl"))
+
+using BenchmarkTools
+using Base.Threads
 
 ################################################################
 function MullerBrown(x,y)
@@ -55,7 +57,7 @@ Makie.convert_arguments(P::Type{<:Scatter}, ps::AbstractVector{<: Point}) =
 Makie.convert_arguments(P::GridBased, ts::AbstractVector{Cartesian2D}, args...) =
     convert_arguments(P, [t.x for t in ts], [t.y for t in ts], args...)
 
-Makie.convert_arguments(P::GridBased, ts::AbstractVector{Cartesian2D}, args...) =
+Makie.convert_arguments(P::GridBased, ts::AbstractVector{Cartesian3D}, args...) =
     convert_arguments(P, [t.x for t in ts], [t.y for t in ts],[t.z for t in ts], args...)
 
 Makie.convert_arguments(P::GridBased, ts::AbstractVector{Polar}, args...) =
@@ -115,7 +117,7 @@ Colorbar(f1[1,0],p1)
 
 display(f1)
 
-tpot = makeCartesianGrid(range(-2.0,1.25,300),range(-0.5,2.5,300),MullerBrown,"Test",diagonal=true)
+tpot = makeCartesianGrid(range(-2.0,1.25,60),range(-0.5,2.5,60),MullerBrown,"Test",diagonal=true)
 
 #tpot.distances
 #dists = [distance(p1,p2) < 2.0 ? distance(p1,p2) : 0.0 for p1 in tpot.points, p2 in tpot.points]
@@ -178,7 +180,7 @@ function pot3(x,y,z)
     return ringpot(r,θ) * (sin(ϕ)^2 + 1)
 end
 
-newpot  = makeCartesianGrid(range(-4.01,4,150),range(-4.01,4,150),range(-4.01,4,150),pot3,"Test",diagonal=false)
+newpot  = makeCartesianGrid(range(-6.01,6,100),range(-6.01,6,100),range(-6.01,6,100),pot3,"Test",diagonal=false)
 newbasin = gradDescent(newpot)
 
 paths3d = []
@@ -186,7 +188,7 @@ transitions2 = findMinimumEnergyPaths.(Ref(newbasin),newbasin.minima)
 
 f3d = Figure(size=(2560,1440), fontsize=40)
 ax3d = Axis3(f3d[1,1], title = "Minimum energy paths of grid transition")
-ax3d2 = Axis3(f3d[1,2], title = "Isosurface of Potential")
+#ax3d2 = Axis3(f3d[1,2], title = "Isosurface of Potential")
 
 s1 = Slider(f3d[1,2], range = -7:0.01:10, startvalue = 0.0,horizontal=false)
 
@@ -206,7 +208,7 @@ end
 for (i,m) in enumerate(newbasin.minima)
     A = toArray(newpot)
     a = [newbasin.gridpoints[p][2] == m ? p.energy : NaN for p in A]
-    volume!(ax3d,(-4,4),(-4,4),(-4,4),a, algorithm = :iso, isovalue = isoval, isorange = 0.2 ,colormap = fill(Makie.wong_colors()[i],100) , interpolate = true)
+    volume!(ax3d,(-4,4),(-4,4),(-4,4),a, algorithm = :iso, isovalue = isoval, isorange = 1 ,colormap = fill(Makie.wong_colors()[i],100) , interpolate = true)
 end
 
 volume!(ax3d,(-4,4),(-4,4),(-4,4),[p.energy for p in toArray(newpot)], algorithm = :iso, isovalue = isoval, isorange = 0.1 ,colormap = :lipari, interpolate = true)
