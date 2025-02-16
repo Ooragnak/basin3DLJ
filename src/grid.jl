@@ -48,7 +48,7 @@ struct Index{Cartesian2D} <: AbstractPoint{Cartesian2D}
 end
 
 struct PointGrid{K <: AbstractPoint} <: Grid{K}
-    dim::Float64
+    dim::Int64
     points::Vector{K}
     distances::AbstractDict{K,AbstractVector{Tuple{Int64,Float64}}}
     properties::AbstractString
@@ -300,8 +300,12 @@ end
 """
 Generate a polar grid from vectors of evenly spaced points in r and theta. 
 """
-function makePolarGrid(rs,θlen,V,properties)
-    θs = range(0,2π,θlen)[1:end-1]
+function makePolarGrid(rs,θlen,V,properties;nudge=false)
+    if nudge
+        θs = range(0.000001,2π,θlen)[1:end-1]
+    else
+        θs = range(0,2π,θlen)[1:end-1]
+    end
     rdim = length(rs)
     θdim = length(θs)
 
