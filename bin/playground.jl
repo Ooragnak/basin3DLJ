@@ -1,88 +1,12 @@
-#PATH OF PROJECT DIR; contains folder like src and data
-rootPath = pwd()
-
-# This is required to get documentation tooltips to work in VSCode
-macro ignore(args...) end
-
-# SYNTAX EXAMPLE:
-#@ignore include("../src/EXAMPLE_LIBRARY.jl")
-#
-#include(joinpath(rootPath, "src/EXAMPLE_LIBRARY.jl"))
-
-include(joinpath(rootPath, "src/theme.jl"))
-include(joinpath(rootPath, "src/grid.jl"))
+include("../src/grid.jl")
+include("../src/potential.jl")
+include("../src/plots.jl")
+include("../src/theme.jl")
 
 using BenchmarkTools
 using Base.Threads
 
 ################################################################
-function MullerBrown(x,y)
-    As = [-200,-100,-170,15]
-    as = [-1,-1,-6.5,0.7]
-    bs = [0,0,11,0.6]
-    cs = [-10,-10,-6.5,0.7]
-    x0s = [1,0,-0.5,-1]
-    y0s = [0,0.5,1.5,1]
-    return sum(As.*exp.(as.*(x.-x0s).^2 .+ bs.*(x.-x0s) .* (y.-y0s) .+ cs.*(y.-y0s).^2))
-end
-
-mb(x) = MullerBrown(x...)
-
-mbpolar(r,theta) = MullerBrown(r*cos(theta)-0.3,r*sin(theta)+1)
-
-ringpot(r,θ, α = 3.0, γ = 3.0, χ₁ = 2.25, χ₂ = 4.5 ) = α * (r-γ)^2 + χ₁ * cos(2θ) -χ₂ * cos(4θ)
-
-
-
-# Array based conversions
-
-Makie.convert_arguments(P::GridBased, ps::AbstractVector{<: Point}) = 
-    convert_arguments(P, [p.translation for p in ps], [p.energy for p in ps])
-
-Makie.convert_arguments(P::T, ps::AbstractVector{<: Point}) where {T <: Union{PointBased, GridBased}}= 
-    convert_arguments(P, [p.translation for p in ps], [p.energy for p in ps])
-
-Makie.convert_arguments(P::PointBased, ts::AbstractVector{Polar}, args...) =
-    convert_arguments(P, [t.θ for t in ts], [t.r for t in ts], args...)
-
-Makie.convert_arguments(P::PointBased, ts::AbstractVector{Cartesian2D}, args...) =
-    convert_arguments(P, [t.x for t in ts], [t.y for t in ts], args...)
-
-Makie.convert_arguments(P::PointBased, ts::AbstractVector{Cartesian3D}, args...) =
-    convert_arguments(P, [t.x for t in ts], [t.y for t in ts], [t.z for t in ts], args...)
-
-Makie.convert_arguments(P::Type{<:Scatter}, ps::AbstractVector{<: Point}) = 
-    convert_arguments(P, [p.translation for p in ps])
-
-Makie.convert_arguments(P::GridBased, ts::AbstractVector{Cartesian2D}, args...) =
-    convert_arguments(P, [t.x for t in ts], [t.y for t in ts], args...)
-
-Makie.convert_arguments(P::GridBased, ts::AbstractVector{Cartesian3D}, args...) =
-    convert_arguments(P, [t.x for t in ts], [t.y for t in ts],[t.z for t in ts], args...)
-
-Makie.convert_arguments(P::GridBased, ts::AbstractVector{Polar}, args...) =
-    convert_arguments(P, [t.θ for t in ts], [t.r for t in ts], args...)
-
-Makie.convert_arguments(P::Type{<:Surface}, ts::AbstractVector{Cartesian2D}, args...) =
-    convert_arguments(P, [t.x for t in ts], [t.y for t in ts], args...)
-
-# Point based convesions
-
-Makie.convert_arguments(P::PointBased, p::Type{<: Point}) =
-    convert_arguments(P, p.translation)
-
-Makie.convert_arguments(P::PointBased, t::Polar, args...) =
-    convert_arguments(P, t.θ, t.r, args...)
-
-Makie.convert_arguments(P::PointBased, t::Cartesian2D, args...) =
-    convert_arguments(P,t.x, t.y, args...)
-
-Makie.convert_arguments(P::PointBased, t::Cartesian3D, args...) =
-    convert_arguments(P,t.x, t.y, t.z, args...)
-
-Makie.convert_arguments(P::Type{<:Scatter}, p::Point, args...) =
-    convert_arguments(P, p.translation, args...)
-
 
 GLMakie.activate!()
 
@@ -175,10 +99,6 @@ for path in paths
     plot!(ax3,[p.energy for p in path])
 end
 
-function pot3(x,y,z) 
-    r, θ, ϕ = toSpherical(x,y,z)
-    return ringpot(r,θ) * (sin(ϕ)^2 + 1)
-end
 
 newpot  = makeCartesianGrid(range(-6.01,6,100),range(-6.01,6,100),range(-6.01,6,100),pot3,"Test",diagonal=false)
 newbasin = gradDescent(newpot)
