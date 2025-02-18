@@ -5,7 +5,9 @@ using PyCall
 using SciPy
 using NPZ
 using SparseArrays
+using Base.Threads
 
+################################################################
 
 abstract type Grid{T} end
 
@@ -68,6 +70,14 @@ mutable struct Basin{T <: AbstractPoint}
     minima::Vector{T}
     gridpoints::Dict{T,Tuple{T,T}} 
 end
+
+#----------------------------------------------------------------
+#   IMPLEMENTATION OF ZERO FOR DEFINED TYPES
+#----------------------------------------------------------------
+Base.zero(::Type{T}) where {T <: Union{Polar,Cartesian2D}} = T(0.0,0.0)
+Base.zero(::Type{T}) where {T <: Union{Spherical,Cartesian3D}} = T(0.0,0.0,0.0)
+Base.zero(::Type{Point{K}}) where {K <: Position} = Point(zero(K),0.0)
+Base.zero(::Type{PointRot{K}}) where {K <: Position} = PointRot((0.0,0.0,0.0,0.0),zero(K),0.0)
 
 #----------------------------------------------------------------
 #   PRETTY PRINTING FOR DEFINED TYPES (COMMENT OR REPAIR IF PRINTING FAILS)
@@ -405,42 +415,49 @@ function parseMolgriGrid(folder::AbstractString,V,properties)
 
     grid = transpose(npzread(string(folder,"_fullgrid.npy")))
 
-
-    if iszero(grid[4:end,1])
+    if grid[4:end,1] == [0.0,0.0,0.0,1.0] == grid[4:end,2]
         rot = false
+        dist = SciPy.sparse.find(SciPy.sparse.load_npz(string(folder,"distances_array.npz")))
 
-        dist = SciPy.sparse.find(SciPy.sparse.load_npz(string(folder,"adjacency_only_position.npz")))
-        dists = SparseArrays.sparse(dist[1] .+= 1,dist[2] .+= 1,dist[3] .+= 1)
-
-        points = Point{Cartesian3D}[]
-        for r in unique(eachcol(grid))
-            push!(points,Point{Cartesian3D}(Cartesian3D(r[1:3]...),V(r[1:3]...)))
+        N = length(eachcol(grid))
+        points = zeros(Point{Cartesian3D},N)
+        
+        for (i,r) in enumerate(eachcol(grid))
+            points[i] = Point{Cartesian3D}(Cartesian3D(r[1:3]...),V(r[1:3]...))
         end
 
         distances = Dict{Point{Cartesian3D},AbstractVector{Tuple{Int64,Float64}}}()
-        sizehint!(distances,length(points))
-
-        for (i,p) in enumerate(unique(points))
-            neighbors = rowvals(dists[i,:])
-            push!(distances,p => tuple.(neighbors,Array{Float64}(dists[i,neighbors])))
-        end
+        sizehint!(distances,N)
     else
         rot = true
         dist = SciPy.sparse.find(SciPy.sparse.load_npz(string(folder,"distances_array.npz")))
-        dists = SparseArrays.sparse(dist[1] .+= 1,dist[2] .+= 1,dist[3] .+= 1)
 
-        points = PointRot{Cartesian3D}[]
-        for r in unique(eachcol(grid))
-            push!(points,PointRot{Cartesian3D}(Tuple(r[4:7]),Cartesian3D(r[1:3]...),V(r[1:3]...)))
+        N = length(eachcol(grid))
+        points = zeros(PointRot{Cartesian3D},N)
+        for (i,r) in enumerate(eachcol(grid))
+            points[i] = PointRot{Cartesian3D}(Tuple(r[4:7]),Cartesian3D(r[1:3]...),V(r[1:3]...))
         end
 
         distances = Dict{PointRot{Cartesian3D},AbstractVector{Tuple{Int64,Float64}}}()
-        sizehint!(distances,length(points))
-        for (i,p) in enumerate(points)
-            neighbors = rowvals(dists[i,:])
-            push!(distances,p => tuple.(neighbors,Array{Float64}(dists[i,neighbors])))
+        sizehint!(distances,N)
+    end
+
+    cols = dist[1] .+ 1
+    rows = dist[2] .+ 1
+    dists = dist[3]
+
+    prevCol = 1
+    neighbors = Int[]
+    for i in 1:length(dists)
+        if prevCol == cols[i]
+            push!(neighbors,rows[i])
+        else
+            push!(distances,points[prevCol] => tuple.(neighbors,dists[neighbors]))
+            prevCol = cols[i]
+            neighbors = [i]
         end
     end
+    push!(distances,points[prevCol] => tuple.(neighbors,dists[neighbors]))
 
     if !rot
         return PointGrid{Point{Cartesian3D}}(3,points,distances,properties)
