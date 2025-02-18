@@ -3,6 +3,7 @@ import numpy as np
 from scipy import sparse
 from molgri.space.fullgrid import FullGrid as fg
 
+################################################################
 
 def makeGrid(prefix: str, b_grid_name: str, o_grid_name: str, tgrid, factor=2, position_grid_cartesian=False, overwrite=False):
     assert prefix[-1] == '/', "Last char in prefix must be '/'"
@@ -23,9 +24,11 @@ def makeGrid(prefix: str, b_grid_name: str, o_grid_name: str, tgrid, factor=2, p
     np.save(prefix + "_fullgrid", grid.get_full_grid_as_array())
 
 
-makeGrid("tmp/60grid/","Cube4D_60","ico_60",[1,5,100],overwrite=True)
+makeGrid("tmp/60grid/","Cube4D_60","ico_60",[1,5,100])
+makeGrid("tmp/noRotGrid/","zero","ico_150",[1,5,50])
 
-fg1 = fg("zero","ico_60","linspace(0.01,0.5,100)")
-fg1.get_full_distances()
-a= fg1.get_full_grid_as_array()
-b = fg1.position_grid.get_position_grid_as_array()
+
+#fg1 = fg("zero","ico_60","linspace(0.01,0.5,100)")
+#fg1.get_full_distances()
+#a= fg1.get_full_grid_as_array()
+#b = fg1.position_grid.get_position_grid_as_array()
