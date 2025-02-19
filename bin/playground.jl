@@ -3,8 +3,11 @@ include("../src/potential.jl")
 include("../src/plots.jl")
 include("../src/theme.jl")
 
+rootPath = pwd()
+
 using BenchmarkTools
 using Base.Threads
+using StatsBase
 
 ################################################################
 
@@ -100,7 +103,7 @@ for path in paths
 end
 
 
-newpot  = makeCartesianGrid(range(-6.01,6,100),range(-6.01,6,100),range(-6.01,6,100),pot3,"Test",diagonal=false)
+newpot  = makeCartesianGrid(range(-6.01,6,100),range(-6.01,6,100),range(-6.01,6,100),ringpot3D,"Test",diagonal=false)
 newbasin = gradDescent(newpot)
 
 paths3d = []
@@ -147,3 +150,72 @@ for t in transitions2
 end
 
 display(f3d)
+
+
+function interpolateSlice(grid::PointGrid{<: Point{T}},xs,ys,z) where {T <: Position}
+    slice = [Cartesian3D(x,y,z) for x in xs, y in ys]
+    interpolated = zeros(size(slice))
+    for (i,col) in enumerate(eachcol(slice))
+        currentDist, currentClosest = findmin(distance.(grid.points,Ref(slice[1,i])))
+        for (j,p) in enumerate(col)
+            closestNeighborDist, closestNeighbor_arg = findmin(distance.(grid.points[first.(grid.distances[grid.points[currentClosest]])],Ref(p)))
+            closestNeighbor = first.(grid.distances[grid.points[currentClosest]])[closestNeighbor_arg]
+            if distance(grid.points[currentClosest],p) > closestNeighborDist
+                currentDist = closestNeighborDist
+                currentClosest = closestNeighbor
+            end
+            interpolated[j,i] = grid.points[currentClosest].energy
+        end
+        #@assert currentDist == minimum(distance.(grid.points,Ref(slice[end,i]))) string(currentDist,"-",minimum(distance.(grid.points,Ref(slice[end,i]))),"-",i,"-",slice[currentClosest])
+    end
+    return interpolated
+end
+
+function interpolateSliceAlt(grid::PointGrid{<: Point{T}},xs,ys,z) where {T <: Position}
+    slice = [Cartesian3D(x,y,z) for x in xs, y in ys]
+    interpolated = zeros(size(slice))
+
+    @threads for i in eachindex(slice)
+        closest = findClosestGridPoint(grid,Point(slice[i],1.0))
+        all = Tuple{Int64, Float64}[]
+        secondSphere = Tuple{Int64, Float64}[]
+        thirdSphere = Tuple{Int64, Float64}[]
+        fourthSphere = Tuple{Int64, Float64}[]
+
+        Sphere = grid.distances[closest]
+        for k in grid.points[first.(Sphere)]
+            append!(secondSphere,grid.distances[k])
+        end
+
+        append!(all,secondSphere)
+        for k in grid.points[first.(secondSphere)]
+            append!(thirdSphere,grid.distances[k])
+        end
+        append!(all,thirdSphere)
+
+        for k in grid.points[first.(thirdSphere)]
+            append!(fourthSphere,grid.distances[k])
+        end
+        append!(all,thirdSphere)
+
+        energy = StatsBase.mean([p.energy for p in grid.points[first.(unique(all))]],weights(1 ./ last.(unique(all))))
+
+        interpolated[i] = energy
+    end
+    return interpolated
+end
+
+
+f4 = Figure(size=(2560,1440), fontsize=40)
+s4 = Slider(f4[1,2], range = -5:0.01:5, startvalue = 0.0,horizontal=false)
+
+ax4 = Axis(f4[1,1], title = string("Sliced Potential with z="), yautolimitmargin = (0, 0),)
+
+
+
+slice = lift(s4.value) do z
+    [ringpot3D(x,y,z) for x in -5:0.02:5, y in -5:0.02:5]
+end
+
+c = heatmap!(ax4,slice,colormap=:lipari,colorrange = (-20,120))
+Colorbar(f4[1,0],c)
