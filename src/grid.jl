@@ -4,7 +4,6 @@ using ProgressMeter
 using PyCall
 using SciPy
 using NPZ
-using SparseArrays
 using Base.Threads
 
 ################################################################
@@ -118,12 +117,12 @@ pretty(ks::AbstractArray{T}) where {T <: Union{Cartesian3D}} = "contains $(lengt
 
 toCartesian(r,θ) = r*cos(θ), r*sin(θ)
 toCartesian(r,θ,ϕ) = r*sin(θ)*cos(ϕ),r*sin(θ)*sin(ϕ),r*cos(θ)
-toPolar(x,y) = hypot(x,y),atan2(y,x)
+toPolar(x,y) = hypot(x,y),atan(y,x)
 
 function toSpherical(x, y, z)
     r = sqrt(x^2 + y^2 + z^2)
     if r == 0
-        return Cartesian3D(0,0,0)
+        return 0,0,0
     end
     θ = acos(z/r)
     ϕ = sign(y)*acos(x/sqrt(x^2+y^2))
@@ -151,17 +150,21 @@ convert(::Type{Cartesian2D},t::Polar) = Cartesian2D(toCartesian(t.r,t.θ)...)
 convert(::Type{Cartesian3D},t::Spherical) = Cartesian3D(toCartesian(t.r,t.θ,t.ϕ)...)
 convert(::Type{Polar},t::Cartesian2D) = Polar(toPolar(t.x,t.y)...)
 convert(::Type{Spherical},t::Spherical) = Spherical(toSpherical(t.x, t.y, t.z)...)
+convert(::Type{Point{T}},p::Point) where {T <: Position} = Point(convert(T,p.translation),p.energy)
+convert(::Type{T},t::T) where {T} = t
 
 #----------------------------------------------------------------
 #   DISTANCE CALCULATIONS
 #----------------------------------------------------------------
 
 distance(t1::Cartesian2D,t2::Cartesian2D) = sqrt((t1.x - t2.x)^2 + (t1.y - t2.y)^2)
-distance(t1::Cartesian3D,t2::Cartesian3D) = sqrt((t1.x - t2.x)^2 + (t1.y - t2.y)^2 + + (t1.z - t2.z)^2)
+distance(t1::Cartesian3D,t2::Cartesian3D) = sqrt((t1.x - t2.x)^2 + (t1.y - t2.y)^2 + (t1.z - t2.z)^2)
 distance(t1::Polar,t2::Polar) = sqrt(t1.r^2 + t2.r^2 - 2*t1.r*t2.r * cos(t1.θ - t2.θ))
 distance(t1::Spherical,t2::Spherical) = sqrt(t1.r^2 + t2.r^2 - 2*t1.r*t2.r*(sin(t1.θ) * sin(t2.θ) * cos(t1.ϕ - t2.ϕ) + cos(t1.θ) * cos(t2.θ)))
 distance(p1::Point{T},p2::Point) where {T <: Position} = distance(p1.translation,convert(T,p2.translation))
 distance(p1::PointRot,p2::PointRot) = distance(p1.translation,p2.translation) + acos(2*dot(p1.rotation,p2.rotation) -1)
+distance(p1::Point{T},t2::T) where {T <: Position} = distance(p1.translation,t2)
+
 
 #----------------------------------------------------------------
 #   OPERATIONS ON GRIDS / BASINS
@@ -454,7 +457,7 @@ function parseMolgriGrid(folder::AbstractString,V,properties)
         else
             push!(distances,points[prevCol] => tuple.(neighbors,dists[neighbors]))
             prevCol = cols[i]
-            neighbors = [i]
+            neighbors = [rows[i]]
         end
     end
     push!(distances,points[prevCol] => tuple.(neighbors,dists[neighbors]))
