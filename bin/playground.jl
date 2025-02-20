@@ -174,7 +174,7 @@ ax4 = Axis(f4[1,1], title = plotTitle, yautolimitmargin = (0, 0),xlabel="x",ylab
 #end
 
 slice = lift(s4.value) do z
-    Array(interpolateSliceGPUAlt(parsedGridAlt,xsvals,xsvals,[z],power=12,ArrayType=ROCArray,closest=true))[:,:,1]
+    Array(interpolateSlice(parsedGridAlt,xsvals,xsvals,[z],power=12,ArrayType=ROCArray{Float32},closest=false))[:,:,1]
 end
 
 
@@ -183,5 +183,5 @@ Colorbar(f4[1,0],c)
 display(f4)
 empty!(f4)
 
-parsedVol = Array(interpolateSlice(parsedGridAlt,range(-5,5,100),range(-5,5,100),range(-5,5,100),power=12,ArrayType=ROCArray,closest=false))
+parsedVol = Array(interpolateSlice(parsedGridAlt,range(-5,5,100),range(-5,5,100),range(-5,5,100),power=12,ArrayType=ROCArray{Float32},closest=true))
 volume(-1 .* parsedVol)

@@ -44,10 +44,9 @@ Makie.convert_arguments(P::Type{<:Scatter}, p::Point, args...) =
 
 function interpolateSlice(grid::PointGrid{<: Point{T}},xs,ys,zs ;power=8,ArrayType = Array,closest=false) where {T <: Position}
     N = length(xs)*length(ys)*length(zs)
-    xarr = ArrayType([x for x in xs, y in ys, z in zs])
-    yarr = ArrayType([y for x in xs, y in ys, z in zs])
-    zarr = ArrayType([z for x in xs, y in ys, z in zs])
-
+    xarr  = ArrayType([x for x in xs, y in ys, z in zs])
+    yarr  = ArrayType([y for x in xs, y in ys, z in zs])
+    zarr  = ArrayType([z for x in xs, y in ys, z in zs])
     pxarr = ArrayType([p.translation.x for p in grid.points])
     pyarr = ArrayType([p.translation.y for p in grid.points])
     pzarr = ArrayType([p.translation.z for p in grid.points])
@@ -79,9 +78,9 @@ end
 
 @kernel function interpolatePoint!(out,@Const(xvals),@Const(yvals),@Const(zvals),@Const(scalar),@Const(px),@Const(py),@Const(pz),n,power)
     j = @index(Global, Linear)
-    weights = 0.0
-    energy = 0.0
-    weight = 0.0
+    weights = zero(eltype(out))
+    energy = zero(eltype(out))
+    weight = zero(eltype(out))
     for i in 1:n
         weight = (1 / sqrt((xvals[j] - px[i])^2 + (yvals[j] - py[i])^2 + (zvals[j] - pz[i])^2))^power
         weights += weight
@@ -94,9 +93,9 @@ end
 
 @kernel function closestPoint!(out,@Const(xvals),@Const(yvals),@Const(zvals),@Const(scalar),@Const(px),@Const(py),@Const(pz),n)
     j = @index(Global, Linear)
-    smallestDistance = Inf
-    distance = 0.0
-    energy = 0.0
+    smallestDistance = typemax(eltype(out))
+    distance = zero(eltype(out))
+    energy = zero(eltype(out))
     for i in 1:n
         distance = (xvals[j] - px[i])^2 + (yvals[j] - py[i])^2 + (zvals[j] - pz[i])^2
         if distance < smallestDistance
