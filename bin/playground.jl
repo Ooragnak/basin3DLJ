@@ -290,26 +290,35 @@ end
 end
 
 
+parsedGrid =  parseMolgriGrid("tmp/norotgrid/",ringpot3D,"Molgri-imported grid")
+parsedGridFine =  parseMolgriGrid("tmp/norotgridfine/",ringpot3D,"Molgri-imported grid")
+
 
 f4 = Figure(size=(2560,1440), fontsize=40)
 s4 = Slider(f4[1,2], range = -5:0.01:5, startvalue = 0.0,horizontal=false)
 
-ax4 = Axis(f4[1,1], title = string("Sliced interpolated potential with z="), yautolimitmargin = (0, 0),)
+plotTitle = lift(s4.value) do z
+    latexstring(L"View of interpolated potential at $z = %$(round(z,sigdigits=3)) $",)
+end
 
-parsedGrid =  parseMolgriGrid("tmp/norotgrid/",ringpot3D,"Molgri-imported grid")
-parsedGridFine =  parseMolgriGrid("tmp/norotgridfine/",ringpot3D,"Molgri-imported grid")
+xsvals = range(-5,5,400)
+ysvals = range(-5,5,400)
+
+
+ax4 = Axis(f4[1,1], title = plotTitle, yautolimitmargin = (0, 0),xlabel="x",ylabel="y")
 
 #slice = lift(s4.value) do z
-#    [ringpot3D(x,y,z) for x in -5:0.02:5, y in -5:0.02:5]
+#    [ringpot3D(x,y,z) for x in xsvals, y in ysvals]
 #end
 
 slice = lift(s4.value) do z
-    Array(interpolateSliceGPUAlt(parsedGridFine,range(-5,5,500),range(-5,5,500),[z],power=20,ArrayType=ROCArray,closest=true))[:,:,1]
+    Array(interpolateSliceGPUAlt(parsedGrid,xsvals,xsvals,[z],power=12,ArrayType=ROCArray,closest=false))[:,:,1]
 end
 
 
-c = heatmap!(ax4,slice,colormap=:lipari)
+c = heatmap!(ax4,xsvals,ysvals,slice,colormap=:lipari)
 Colorbar(f4[1,0],c)
+empty!(f4)
 
-parsedVol = Array(interpolateSliceGPUAlt(parsedGridFine,range(-5,5,250),range(-5,5,250),range(0,5,100),power=12,ArrayType=ROCArray,closest=true))
+@benchmark parsedVol = Array(interpolateSliceGPUAlt(parsedGridFine,range(-5,5,250),range(-5,5,250),range(0,5,20),power=12,ArrayType=ROCArray,closest=true))
 volume(-1 .* parsedVol)
