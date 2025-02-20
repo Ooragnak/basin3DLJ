@@ -26,6 +26,8 @@ def makeGrid(prefix: str, b_grid_name: str, o_grid_name: str, tgrid, factor=2, p
 
 makeGrid("tmp/60grid/","Cube4D_60","ico_60",[1,5,100])
 makeGrid("tmp/noRotGrid/","zero","ico_150",[1,5,50])
+makeGrid("tmp/noRotGridFine/","zero","ico_500",[0.1,5,100],overwrite=True)
+
 
 
 #fg1 = fg("zero","ico_60","linspace(0.01,0.5,100)")
