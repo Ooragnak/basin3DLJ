@@ -8,6 +8,9 @@ rootPath = pwd()
 using BenchmarkTools
 using Base.Threads
 using StatsBase
+using KernelAbstractions
+using AMDGPU
+using CUDA
 
 ################################################################
 
@@ -205,17 +208,108 @@ function interpolateSliceAlt(grid::PointGrid{<: Point{T}},xs,ys,z) where {T <: P
     return interpolated
 end
 
+function interpolateSliceGPU(grid::PointGrid{<: Point{T}},xs,ys,z,power=8) where {T <: Position}
+    xs2 = vec([x for x in xs, y in ys])
+    ys2 = vec([y for x in xs, y in ys])
+    interpolated = zeros(size(xs2))
+    ps = grid.points
+    xarr = ROCArray([p.translation.x for p in grid.points])
+    yarr = ROCArray([p.translation.y for p in grid.points])
+    zarr = ROCArray([p.translation.z for p in grid.points])
+    distances = ROCArray(zeros(size(grid.points)))
+    w = ROCArray(zeros(size(grid.points)))
+    energies = ROCArray([p.energy for p in grid.points])
+
+    for i in eachindex(xs2)
+
+        distances .= sqrt.((xarr .- xs2[i]).^2 .+ (yarr .- ys2[i]).^2 .+ (zarr .- z).^2)
+        w .= ((1.0 ./ distances) .^ power)
+        energy = sum(energies .* w) / sum(w)
+        #energy = minimum(distances)
+        interpolated[i] = energy
+    end
+
+    return reshape(interpolated,(length(xs),length(ys)))
+end
+
+function interpolateSliceGPUAlt(grid::PointGrid{<: Point{T}},xs,ys,zs  ;power=8,ArrayType = Array,closest=false) where {T <: Position}
+    N = length(xs)*length(ys)*length(zs)
+    xs2 = ArrayType([x for x in xs, y in ys, z in zs])
+    ys2 = ArrayType([y for x in xs, y in ys, z in zs])
+    zs2 = ArrayType([z for x in xs, y in ys, z in zs])
+
+    xarr = ArrayType([p.translation.x for p in grid.points])
+    yarr = ArrayType([p.translation.y for p in grid.points])
+    zarr = ArrayType([p.translation.z for p in grid.points])
+
+    energyarr = ArrayType([p.energy for p in grid.points])
+
+
+    energies = ArrayType(zeros(Float32,N))
+
+    backend = get_backend(xarr)
+    if !closest 
+        kernel! = interpolatePoint!(backend,256)
+        kernel!(energies,xs2,ys2,zs2,energyarr,xarr,yarr,zarr,length(xarr),power;ndrange = N)
+    else
+        kernel! = closestPoint!(backend,256)
+        kernel!(energies,xs2,ys2,zs2,energyarr,xarr,yarr,zarr,length(xarr);ndrange = N)
+    end
+
+    return reshape(energies,(length(xs),length(ys),length(zs)))
+end
+
+
+
+@kernel function interpolatePoint!(out,xvals,yvals,zvals,energies,px,py,pz,n,power)
+    j = @index(Global, Linear)
+    weights = 0.0
+    energy = 0.0
+    weight = 0.0
+    for i in 1:n
+        weight = (1 / sqrt((xvals[j] - px[i])^2 + (yvals[j] - py[i])^2 + (zvals[j] - pz[i])^2))^power
+        weights += weight
+        energy += energies[i] * weight
+    end
+    out[j] = energy / weights
+end
+
+@kernel function closestPoint!(out,xvals,yvals,zvals,energies,px,py,pz,n)
+    j = @index(Global, Linear)
+    smallestDistance = Inf
+    distance = 0.0
+    energy = 0.0
+    for i in 1:n
+        distance = sqrt((xvals[j] - px[i])^2 + (yvals[j] - py[i])^2 + (zvals[j] - pz[i])^2) 
+        if distance < smallestDistance
+            smallestDistance = distance
+            energy = energies[i]
+        end
+    end
+    out[j] = energy
+end
+
+
 
 f4 = Figure(size=(2560,1440), fontsize=40)
 s4 = Slider(f4[1,2], range = -5:0.01:5, startvalue = 0.0,horizontal=false)
 
-ax4 = Axis(f4[1,1], title = string("Sliced Potential with z="), yautolimitmargin = (0, 0),)
+ax4 = Axis(f4[1,1], title = string("Sliced interpolated potential with z="), yautolimitmargin = (0, 0),)
 
+parsedGrid =  parseMolgriGrid("tmp/norotgrid/",ringpot3D,"Molgri-imported grid")
+parsedGridFine =  parseMolgriGrid("tmp/norotgridfine/",ringpot3D,"Molgri-imported grid")
 
+#slice = lift(s4.value) do z
+#    [ringpot3D(x,y,z) for x in -5:0.02:5, y in -5:0.02:5]
+#end
 
 slice = lift(s4.value) do z
-    [ringpot3D(x,y,z) for x in -5:0.02:5, y in -5:0.02:5]
+    Array(interpolateSliceGPUAlt(parsedGridFine,range(-5,5,500),range(-5,5,500),[z],power=20,ArrayType=ROCArray,closest=true))[:,:,1]
 end
 
-c = heatmap!(ax4,slice,colormap=:lipari,colorrange = (-20,120))
+
+c = heatmap!(ax4,slice,colormap=:lipari)
 Colorbar(f4[1,0],c)
+
+parsedVol = Array(interpolateSliceGPUAlt(parsedGridFine,range(-5,5,250),range(-5,5,250),range(0,5,100),power=12,ArrayType=ROCArray,closest=true))
+volume(-1 .* parsedVol)
