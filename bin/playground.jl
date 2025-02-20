@@ -163,8 +163,8 @@ plotTitle = lift(s4.value) do z
     latexstring(L"View of interpolated potential at $z = %$(round(z,sigdigits=3)) $",)
 end
 
-xsvals = range(-4,4,500)
-ysvals = range(-4,4,500)
+xsvals = range(-4,4,800)
+ysvals = range(-4,4,800)
 
 
 ax4 = Axis(f4[1,1], title = plotTitle, yautolimitmargin = (0, 0),xlabel="x",ylabel="y")
@@ -174,7 +174,7 @@ ax4 = Axis(f4[1,1], title = plotTitle, yautolimitmargin = (0, 0),xlabel="x",ylab
 #end
 
 slice = lift(s4.value) do z
-    Array(interpolateSlice(parsedGridAlt,xsvals,xsvals,[z],power=12,ArrayType=ROCArray{Float32},closest=false))[:,:,1]
+    Array(interpolateSlice(parsedGridAlt,xsvals,xsvals,[z],power=10,ArrayType=ROCArray{Float32},closest=false))[:,:,1]
 end
 
 
@@ -185,3 +185,18 @@ empty!(f4)
 
 parsedVol = Array(interpolateSlice(parsedGridAlt,range(-5,5,100),range(-5,5,100),range(-5,5,100),power=12,ArrayType=ROCArray{Float32},closest=true))
 volume(-1 .* parsedVol)
+
+
+
+# Example benchmarks showing the impact of GPU computing for single and double precision floating point
+#julia> @time parsedVol = Array(interpolateSlice(parsedGridAlt,range(-5,5,200),range(-5,5,200),range(-5,5,200),power=12,ArrayType=Array{Float64},closest=false));
+# 78.438337 seconds (59.70 k allocations: 552.794 MiB, 0.14% gc time, 1.65% compilation time)
+#
+#julia> @time parsedVol = Array(interpolateSlice(parsedGridAlt,range(-5,5,200),range(-5,5,200),range(-5,5,200),power=12,ArrayType=ROCArray{Float64},closest=false));
+# 27.153468 seconds (449.98 k allocations: 319.309 MiB, 0.65% gc time, 0.03% compilation time)
+#
+#julia> @time parsedVol = Array(interpolateSlice(parsedGridAlt,range(-5,5,200),range(-5,5,200),range(-5,5,200),power=12,ArrayType=Array{Float32},closest=false));
+# 68.281488 seconds (59.19 k allocations: 369.548 MiB, 0.02% gc time, 2.15% compilation time)
+#
+#julia> @time parsedVol = Array(interpolateSlice(parsedGridAlt,range(-5,5,200),range(-5,5,200),range(-5,5,200),power=12,ArrayType=ROCArray{Float32},closest=false));
+#  2.174526 seconds (280 allocations: 336.068 MiB, 5.69% gc time)
