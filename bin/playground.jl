@@ -7,11 +7,6 @@ rootPath = pwd()
 
 using BenchmarkTools
 using Base.Threads
-import StatsBase
-using KernelAbstractions
-using AMDGPU
-using CUDA
-import Atomix
 
 ################################################################
 
@@ -156,155 +151,7 @@ end
 display(f3d)
 
 
-function interpolateSlice(grid::PointGrid{<: Point{T}},xs,ys,z) where {T <: Position}
-    slice = [Cartesian3D(x,y,z) for x in xs, y in ys]
-    interpolated = zeros(size(slice))
-    for (i,col) in enumerate(eachcol(slice))
-        currentDist, currentClosest = findmin(distance.(grid.points,Ref(slice[1,i])))
-        for (j,p) in enumerate(col)
-            closestNeighborDist, closestNeighbor_arg = findmin(distance.(grid.points[first.(grid.distances[grid.points[currentClosest]])],Ref(p)))
-            closestNeighbor = first.(grid.distances[grid.points[currentClosest]])[closestNeighbor_arg]
-            if distance(grid.points[currentClosest],p) > closestNeighborDist
-                currentDist = closestNeighborDist
-                currentClosest = closestNeighbor
-            end
-            interpolated[j,i] = grid.points[currentClosest].energy
-        end
-        #@assert currentDist == minimum(distance.(grid.points,Ref(slice[end,i]))) string(currentDist,"-",minimum(distance.(grid.points,Ref(slice[end,i]))),"-",i,"-",slice[currentClosest])
-    end
-    return interpolated
-end
-
-function interpolateSliceAlt(grid::PointGrid{<: Point{T}},xs,ys,z) where {T <: Position}
-    slice = [Cartesian3D(x,y,z) for x in xs, y in ys]
-    interpolated = zeros(size(slice))
-
-    @threads for i in eachindex(slice)
-        closest = findClosestGridPoint(grid,Point(slice[i],1.0))
-        all = Tuple{Int64, Float64}[]
-        secondSphere = Tuple{Int64, Float64}[]
-        thirdSphere = Tuple{Int64, Float64}[]
-        fourthSphere = Tuple{Int64, Float64}[]
-
-        Sphere = grid.distances[closest]
-        for k in grid.points[first.(Sphere)]
-            append!(secondSphere,grid.distances[k])
-        end
-
-        append!(all,secondSphere)
-        for k in grid.points[first.(secondSphere)]
-            append!(thirdSphere,grid.distances[k])
-        end
-        append!(all,thirdSphere)
-
-        for k in grid.points[first.(thirdSphere)]
-            append!(fourthSphere,grid.distances[k])
-        end
-        append!(all,thirdSphere)
-
-        energy = StatsBase.mean([p.energy for p in grid.points[first.(unique(all))]],weights(1 ./ last.(unique(all))))
-
-        interpolated[i] = energy
-    end
-    return interpolated
-end
-
-
-function interpolateSliceGPU(grid::PointGrid{<: Point{T}},xs,ys,zs  ;power=8,ArrayType = Array,closest=false) where {T <: Position}
-    N = length(xs)*length(ys)*length(zs)
-    xs2 = ArrayType([x for x in xs, y in ys, z in zs])
-    ys2 = ArrayType([y for x in xs, y in ys, z in zs])
-    zs2 = ArrayType([z for x in xs, y in ys, z in zs])
-
-    xarr = ArrayType([p.translation.x for p in grid.points])
-    yarr = ArrayType([p.translation.y for p in grid.points])
-    zarr = ArrayType([p.translation.z for p in grid.points])
-
-    energyarr = ArrayType([p.energy for p in grid.points])
-
-
-    energies = ArrayType(zeros(Float32,N))
-
-    backend = get_backend(xarr)
-    if !closest 
-        kernel! = interpolatePoint!(backend,256)
-        kernel!(energies,xs2,ys2,zs2,energyarr,xarr,yarr,zarr,length(xarr),power;ndrange = N)
-    else
-        kernel! = closestPoint!(backend,256)
-        kernel!(energies,xs2,ys2,zs2,energyarr,xarr,yarr,zarr,length(xarr);ndrange = N)
-    end
-
-    return reshape(energies,(length(xs),length(ys),length(zs)))
-end
-
-
-
-@kernel function interpolatePoint!(out,@Const(xvals),@Const(yvals),@Const(zvals),@Const(energies),@Const(px),@Const(py),@Const(pz),n,power)
-    j = @index(Global, Linear)
-    weights = 0.0
-    energy = 0.0
-    weight = 0.0
-    for i in 1:n
-        weight = (1 / sqrt((xvals[j] - px[i])^2 + (yvals[j] - py[i])^2 + (zvals[j] - pz[i])^2))^power
-        weights += weight
-        energy += energies[i] * weight
-    end
-    out[j] = energy / weights
-end
-
-
-@kernel function interpolatePointAlt!(weights,energy,@Const(xvals),@Const(yvals),@Const(zvals),@Const(energies),@Const(px),@Const(py),@Const(pz),power,splitsize)
-    k,l,m,i = @index(Global, NTuple)
-    weight = (1 / sqrt((xvals[k,l,m] - px[i])^2 + (yvals[k,l,m] - py[i])^2 + (zvals[k,l,m] - pz[i])^2))^power
-    Atomix.@atomic weights[k,l,m] += weight
-    Atomix.@atomic energy[k,l,m] += energies[i] * weight
-end
-
-@kernel function closestPoint!(out,@Const(xvals),@Const(yvals),@Const(zvals),@Const(energies),@Const(px),@Const(py),@Const(pz),n)
-    j = @index(Global, Linear)
-    smallestDistance = Inf
-    distance = 0.0
-    energy = 0.0
-    for i in 1:n
-        distance = (xvals[j] - px[i])^2 + (yvals[j] - py[i])^2 + (zvals[j] - pz[i])^2
-        if distance < smallestDistance
-            smallestDistance = distance
-            energy = energies[i]
-        end
-    end
-    out[j] = energy
-end
-
-function interpolateSliceGPUAlt(grid::PointGrid{<: Point{T}},xs,ys,zs  ;power=8,ArrayType = Array,closest=false,splitsize = 100) where {T <: Position}
-    xs2 = ArrayType([x for x in xs, y in ys, z in zs])
-    ys2 = ArrayType([y for x in xs, y in ys, z in zs])
-    zs2 = ArrayType([z for x in xs, y in ys, z in zs])
-
-    xarr = ArrayType([p.translation.x for p in grid.points])
-    yarr = ArrayType([p.translation.y for p in grid.points])
-    zarr = ArrayType([p.translation.z for p in grid.points])
-
-    energyarr = ArrayType([p.energy for p in grid.points])
-
-    weights = ArrayType(zeros(Float64,(length(xs),length(ys),length(zs))))
-    energies = ArrayType(zeros(Float64,(length(xs),length(ys),length(zs))))
-
-    backend = get_backend(xarr)
-    if !closest 
-        kernel! = interpolatePointAlt!(backend)
-        kernel!(weights,energies,xs2,ys2,zs2,energyarr,xarr,yarr,zarr,power,splitsize;ndrange = (length(xs),length(ys),length(zs),length(energyarr)))
-    else
-        kernel! = closestPoint!(backend)
-        kernel!(energies,xs2,ys2,zs2,energyarr,xarr,yarr,zarr,length(xarr);ndrange = (length(xs)*length(ys)*length(zs)))
-    end
-    if !closest
-        return energies ./ weights
-    else
-        return energies
-    end
-end
-
-
+parsedGridAlt =  parseMolgriGrid("tmp/noRotGridAlt/",ringpot3D,"Molgri-imported grid")
 parsedGrid =  parseMolgriGrid("data/noRotGrid/",ringpot3D,"Molgri-imported grid")
 #parsedGridFine =  parseMolgriGrid("tmp/norotgridfine/",ringpot3D,"Molgri-imported grid")
 
@@ -316,8 +163,8 @@ plotTitle = lift(s4.value) do z
     latexstring(L"View of interpolated potential at $z = %$(round(z,sigdigits=3)) $",)
 end
 
-xsvals = range(-3,3,1000)
-ysvals = range(-3,3,1000)
+xsvals = range(-4,4,500)
+ysvals = range(-4,4,500)
 
 
 ax4 = Axis(f4[1,1], title = plotTitle, yautolimitmargin = (0, 0),xlabel="x",ylabel="y")
@@ -327,13 +174,14 @@ ax4 = Axis(f4[1,1], title = plotTitle, yautolimitmargin = (0, 0),xlabel="x",ylab
 #end
 
 slice = lift(s4.value) do z
-    Array(interpolateSliceGPUAlt(parsedGrid,xsvals,xsvals,[z],power=12,ArrayType=CuArray,closest=true))[:,:,1]
+    Array(interpolateSliceGPUAlt(parsedGridAlt,xsvals,xsvals,[z],power=12,ArrayType=ROCArray,closest=true))[:,:,1]
 end
 
 
-c = heatmap!(ax4,xsvals,ysvals,slice,colormap=:lipari)
+c = heatmap!(ax4,xsvals,ysvals,slice,colormap=:lipari,colorrange=(-20,60))
 Colorbar(f4[1,0],c)
+display(f4)
 empty!(f4)
 
-@benchmark parsedVol = Array(interpolateSliceGPUAlt(parsedGrid,range(-5,5,300),range(-5,5,300),[1],power=12,ArrayType=CuArray,closest=false))
+parsedVol = Array(interpolateSlice(parsedGridAlt,range(-5,5,100),range(-5,5,100),range(-5,5,100),power=12,ArrayType=ROCArray,closest=false))
 volume(-1 .* parsedVol)
