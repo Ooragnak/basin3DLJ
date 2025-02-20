@@ -1,7 +1,6 @@
 using LinearAlgebra
 using Printf
 using ProgressMeter
-using PyCall
 using SciPy
 using NPZ
 using Base.Threads
