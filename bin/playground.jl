@@ -320,5 +320,5 @@ c = heatmap!(ax4,xsvals,ysvals,slice,colormap=:lipari)
 Colorbar(f4[1,0],c)
 empty!(f4)
 
-@benchmark parsedVol = Array(interpolateSliceGPUAlt(parsedGridFine,range(-5,5,250),range(-5,5,250),range(0,5,20),power=12,ArrayType=ROCArray,closest=true))
+@benchmark parsedVol = Array(interpolateSliceGPUAlt(parsedGrid,range(-5,5,1200),range(-5,5,1200),[1],power=12,ArrayType=ROCArray,closest=false))
 volume(-1 .* parsedVol)
