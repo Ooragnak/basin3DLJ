@@ -102,7 +102,7 @@ for path in paths
 end
 
 
-newpot  = makeCartesianGrid(range(-6.01,6,100),range(-6.01,6,100),range(-6.01,6,100),ringpot3D,"Test",diagonal=false)
+newpot  = makeCartesianGrid(range(-6.01,6,200),range(-6.01,6,200),range(-6.01,6,200),ringpot3D,"Test",diagonal=false)
 newbasin = gradDescent(newpot)
 
 paths3d = []
@@ -110,30 +110,6 @@ transitions2 = findMinimumEnergyPaths.(Ref(newbasin),newbasin.minima)
 
 f3d = Figure(size=(2560,1440), fontsize=40)
 ax3d = Axis3(f3d[1,1], title = "Minimum energy paths of grid transition")
-#ax3d2 = Axis3(f3d[1,2], title = "Isosurface of Potential")
-
-s1 = Slider(f3d[1,2], range = -7:0.01:10, startvalue = 0.0,horizontal=false)
-
-function toArray(ps::PointGrid{Point{Cartesian3D}})
-    xlen = length(unique(p.translation.x for p in ps.points))
-    ylen = length(unique(p.translation.y for p in ps.points))
-    zlen = length(unique(p.translation.z for p in ps.points))
-    A = reshape(ps.points,(xlen,ylen,zlen))
-    return A
-end
-
-
-isoval = lift(s1.value) do x 
-    x
-end
-
-for (i,m) in enumerate(newbasin.minima)
-    A = toArray(newpot)
-    a = [newbasin.gridpoints[p][2] == m ? p.energy : NaN for p in A]
-    volume!(ax3d,(-4,4),(-4,4),(-4,4),a, algorithm = :iso, isovalue = isoval, isorange = 1 ,colormap = fill(Makie.wong_colors()[i],100) , interpolate = true)
-end
-
-volume!(ax3d,(-4,4),(-4,4),(-4,4),[p.energy for p in toArray(newpot)], algorithm = :iso, isovalue = isoval, isorange = 0.1 ,colormap = :lipari, interpolate = true)
 
 for m in newbasin.minima 
     scatter!(ax3d,m,markersize = 15, marker=:xcross, label = pretty(m,3))
@@ -148,10 +124,8 @@ for t in transitions2
     end
 end
 
-display(f3d)
 
-
-parsedGridAlt =  parseMolgriGrid("tmp/noRotGridAlt/",ringpot3D,"Molgri-imported grid")
+#parsedGridAlt =  parseMolgriGrid("tmp/noRotGridAlt/",ringpot3D,"Molgri-imported grid")
 parsedGrid =  parseMolgriGrid("data/noRotGrid/",ringpot3D,"Molgri-imported grid")
 #parsedGridFine =  parseMolgriGrid("tmp/norotgridfine/",ringpot3D,"Molgri-imported grid")
 
@@ -163,8 +137,8 @@ plotTitle = lift(s4.value) do z
     latexstring(L"View of interpolated potential at $z = %$(round(z,sigdigits=3)) $",)
 end
 
-xsvals = range(-4,4,800)
-ysvals = range(-4,4,800)
+xsvals = range(-4,4,400)
+ysvals = range(-4,4,400)
 
 
 ax4 = Axis(f4[1,1], title = plotTitle, yautolimitmargin = (0, 0),xlabel="x",ylabel="y")
@@ -174,18 +148,34 @@ ax4 = Axis(f4[1,1], title = plotTitle, yautolimitmargin = (0, 0),xlabel="x",ylab
 #end
 
 slice = lift(s4.value) do z
-    Array(interpolateSlice(parsedGridAlt,xsvals,xsvals,[z],power=10,ArrayType=ROCArray{Float32},closest=false))[:,:,1]
+    Array(interpolateSlice(parsedGrid,xsvals,xsvals,[z],power=10,ArrayType=CuArray{Float32},closest=true))[:,:,1]
 end
 
+#slice = lift(s4.value) do z
+#    [findfirst(Ref(parsedBasin.gridpoints[p][2]) .== parsedBasin.minima) for p in interpolateSlice(parsedGrid,xsvals,xsvals,[z],power=10,ArrayType=CuArray{Float32},closest=true,getPoints=true)[:,:,1]]
+#end
+#
+
+slice = lift(s4.value) do z
+    [findfirst(Ref(parsedBasin.gridpoints[p][2]) .== parsedBasin.minima) for p in interpolateSlice(parsedGrid,xsvals,xsvals,[z],power=10,ArrayType=CuArray{Float32},closest=true,getPoints=true)[:,:,1]]
+end
+
+d = heatmap!(ax4,xsvals,ysvals,slice,colormap=Makie.wong_colors())
 
 c = heatmap!(ax4,xsvals,ysvals,slice,colormap=:lipari,colorrange=(-20,60))
 Colorbar(f4[1,0],c)
 display(f4)
 empty!(f4)
 
-parsedVol = Array(interpolateSlice(parsedGridAlt,range(-5,5,100),range(-5,5,100),range(-5,5,100),power=12,ArrayType=ROCArray{Float32},closest=true))
+parsedVol = Array(interpolateSlice(parsedGrid,range(-5,5,500),range(-5,5,500),range(-5,5,500),power=12,ArrayType=CuArray{Float32},closest=true))
+
+
 volume(-1 .* parsedVol)
 
+
+plotBasinsIsosurface(newbasin)
+parsedBasin = gradDescent(parsedGrid)
+plotBasinsIsosurface(parsedBasin,interpolate=[(-5,5),(-5,5),(-5,5)],ArrayType=CuArray{Float32},interpolationResolution=250)
 
 
 # Example benchmarks showing the impact of GPU computing for single and double precision floating point
