@@ -57,6 +57,7 @@ struct PointGrid{K <: AbstractPoint} <: Grid{K}
     points::Vector{K}
     distances::AbstractDict{K,AbstractVector{Tuple{Int64,Float64}}}
     properties::AbstractString
+    isCartesian::Bool
 end
 
 """
@@ -275,7 +276,7 @@ function makeCartesianGrid(xs,ys,V,properties;diagonal=true)
         next!(progress; showvalues = generate_progress(arg1))
     end
 
-    return PointGrid{Point{Cartesian2D}}(2,vec(points),distances,properties)
+    return PointGrid{Point{Cartesian2D}}(2,vec(points),distances,properties,true)
 end
 
 function makeCartesianGrid(xs,ys,zs,V,properties;diagonal=true)
@@ -311,7 +312,7 @@ function makeCartesianGrid(xs,ys,zs,V,properties;diagonal=true)
         next!(progress; showvalues = generate_progress(arg1))
     end
 
-    return PointGrid{Point{Cartesian3D}}(3,vec(points),distances,properties)
+    return PointGrid{Point{Cartesian3D}}(3,vec(points),distances,properties,true)
 end
 
 """
@@ -350,7 +351,7 @@ function makePolarGrid(rs,θlen,V,properties;nudge=false)
         next!(progress; showvalues = generate_progress(arg1))
     end
 
-    return PointGrid{Point{Polar}}(2,vec(points),distances,properties)
+    return PointGrid{Point{Polar}}(2,vec(points),distances,properties,false)
 end
 
 function getBasinSize(basin::Basin,minimum::AbstractPoint)
@@ -413,7 +414,7 @@ function findMinimumEnergyPaths(basin::Basin,minimum::AbstractPoint)
     return foundTransitionPoints
 end
 
-function parseMolgriGrid(folder::AbstractString,V,properties)
+function parseMolgriGrid(folder::AbstractString,V,properties,isCartesian=false)
 
     grid = transpose(npzread(string(folder,"_fullgrid.npy")))
 
@@ -462,9 +463,9 @@ function parseMolgriGrid(folder::AbstractString,V,properties)
     push!(distances,points[prevCol] => tuple.(neighbors,dists[neighbors]))
 
     if !rot
-        return PointGrid{Point{Cartesian3D}}(3,points,distances,properties)
+        return PointGrid{Point{Cartesian3D}}(3,points,distances,properties,isCartesian)
     else
-        return PointGrid{PointRot{Cartesian3D}}(3,points,distances,properties)
+        return PointGrid{PointRot{Cartesian3D}}(3,points,distances,properties,isCartesian)
     end
 
 end
