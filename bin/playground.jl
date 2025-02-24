@@ -9,6 +9,7 @@ using BenchmarkTools
 using Base.Threads
 
 ################################################################
+ARRAYTYPE = ROCArray{Float32}
 
 GLMakie.activate!()
 
@@ -102,7 +103,7 @@ for path in paths
 end
 
 
-newpot  = makeCartesianGrid(range(-6.01,6,200),range(-6.01,6,200),range(-6.01,6,200),ringpot3D,"Test",diagonal=false)
+newpot  = makeCartesianGrid(range(-6.01,6,100),range(-6.01,6,100),range(-6.01,6,100),ringpot3D,"Test",diagonal=false)
 newbasin = gradDescent(newpot)
 
 paths3d = []
@@ -137,9 +138,8 @@ plotTitle = lift(s4.value) do z
     latexstring(L"View of interpolated potential at $z = %$(round(z,sigdigits=3)) $",)
 end
 
-xsvals = range(-4,4,400)
-ysvals = range(-4,4,400)
-
+xsvals = range(-4,4,200)
+ysvals = range(-4,4,200)
 
 ax4 = Axis(f4[1,1], title = plotTitle, yautolimitmargin = (0, 0),xlabel="x",ylabel="y")
 
@@ -147,27 +147,28 @@ ax4 = Axis(f4[1,1], title = plotTitle, yautolimitmargin = (0, 0),xlabel="x",ylab
 #    [ringpot3D(x,y,z) for x in xsvals, y in ysvals]
 #end
 
-slice = lift(s4.value) do z
-    Array(interpolateSlice(parsedGrid,xsvals,xsvals,[z],power=10,ArrayType=CuArray{Float32},closest=true))[:,:,1]
-end
+#slice = lift(s4.value) do z
+#    Array(interpolateSlice(parsedGrid,xsvals,ysvals,[z],power=10,ArrayType=ARRAYTYPE,closest=true))[:,:,1]
+#end
 
 #slice = lift(s4.value) do z
-#    [findfirst(Ref(parsedBasin.gridpoints[p][2]) .== parsedBasin.minima) for p in interpolateSlice(parsedGrid,xsvals,xsvals,[z],power=10,ArrayType=CuArray{Float32},closest=true,getPoints=true)[:,:,1]]
+#    [findfirst(Ref(parsedBasin.gridpoints[p][2]) .== parsedBasin.minima) for p in interpolateSlice(parsedGrid,xsvals,ysvals,[z],power=10,ArrayType=ARRAYTYPE,closest=true,getPoints=true)[:,:,1]]
 #end
-#
+
 
 slice = lift(s4.value) do z
-    [findfirst(Ref(parsedBasin.gridpoints[p][2]) .== parsedBasin.minima) for p in interpolateSlice(parsedGrid,xsvals,xsvals,[z],power=10,ArrayType=CuArray{Float32},closest=true,getPoints=true)[:,:,1]]
+    [findfirst(Ref(newbasin.gridpoints[p][2]) .== newbasin.minima) for p in interpolateSlice(newpot,xsvals,ysvals,[z],power=10,ArrayType=ARRAYTYPE,closest=true,getPoints=true)[:,:,1]]
 end
+
 
 d = heatmap!(ax4,xsvals,ysvals,slice,colormap=Makie.wong_colors())
 
-c = heatmap!(ax4,xsvals,ysvals,slice,colormap=:lipari,colorrange=(-20,60))
-Colorbar(f4[1,0],c)
+#c = heatmap!(ax4,xsvals,ysvals,slice,colormap=:lipari,colorrange=(-20,60))
+#Colorbar(f4[1,0],c)
 display(f4)
 empty!(f4)
 
-parsedVol = Array(interpolateSlice(parsedGrid,range(-5,5,500),range(-5,5,500),range(-5,5,500),power=12,ArrayType=CuArray{Float32},closest=true))
+parsedVol = Array(interpolateSlice(parsedGrid,range(-5,5,500),range(-5,5,500),range(-5,5,500),power=12,ArrayType=ARRAYTYPE,closest=true))
 
 
 volume(-1 .* parsedVol)
@@ -175,7 +176,7 @@ volume(-1 .* parsedVol)
 
 plotBasinsIsosurface(newbasin)
 parsedBasin = gradDescent(parsedGrid)
-plotBasinsIsosurface(parsedBasin,interpolate=[(-5,5),(-5,5),(-5,5)],ArrayType=CuArray{Float32},interpolationResolution=250)
+plotBasinsIsosurface(parsedBasin,interpolate=[(-5,5),(-5,5),(-5,5)],ArrayType=ARRAYTYPE,interpolationResolution=250)
 
 
 # Example benchmarks showing the impact of GPU computing for single and double precision floating point

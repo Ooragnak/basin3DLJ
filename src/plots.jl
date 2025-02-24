@@ -57,9 +57,9 @@ function interpolateSlice(grid::PointGrid{<: Point{T}},xs,ys,zs ;power=8,ArrayTy
         interpolateScalar!(energies, pxarr, pyarr, pzarr, energyarr, xarr, yarr, zarr; power= power, closest= closest)
         return reshape(energies,(length(xs),length(ys),length(zs)))
     else
-        pIndices = Int32.(ArrayType(zeros(eltype(xarr),size(xarr))))
+        pIndices = ArrayType(zeros(eltype(xarr),size(xarr)))
         interpolateScalar!(pIndices, pxarr, pyarr, pzarr, energyarr, xarr, yarr, zarr; power= power, closest= closest,getIndex=true)
-        return [grid.points[i] for i in Array(pIndices)]
+        return [grid.points[i] for i in Int64.(Array(pIndices))]
     end
 end
 
@@ -116,14 +116,14 @@ end
 
 @kernel function closestPointIndex!(out,@Const(xvals),@Const(yvals),@Const(zvals),@Const(scalar),@Const(px),@Const(py),@Const(pz),n)
     j = @index(Global, Linear)
-    smallestDistance = typemax(eltype(out))
-    distance = zero(eltype(out))
+    smallestDistance = typemax(eltype(scalar))
+    distance = zero(eltype(scalar))
     closestIndex = zero(eltype(out))
     for i in 1:n
         distance = (xvals[j] - px[i])^2 + (yvals[j] - py[i])^2 + (zvals[j] - pz[i])^2
         if distance < smallestDistance
             smallestDistance = distance
-            closestIndex = i
+            closestIndex = Float32(i)
         end
     end
     out[j] = closestIndex
