@@ -23,11 +23,11 @@ def makeGrid(prefix: str, b_grid_name: str, o_grid_name: str, tgrid, factor=2, p
     np.save(prefix + "_fullgrid", grid.get_full_grid_as_array())
 
 
-makeGrid("tmp/60grid/","Cube4D_60","ico_60",[1,5,100])
+makeGrid("data/60grid/","Cube4D_60","ico_60",[1,5,100])
 makeGrid("tmp/noRotGrid/","zero","ico_150",[1,5,50])
 makeGrid("data/noRotGrid/","zero","ico_150",[1,5,50])
-makeGrid("tmp/noRotGridFine/","zero","ico_500",[0.1,5,100])
-makeGrid("tmp/noRotGridAlt/","zero","ico_160",[0.01,5,20])
+makeGrid("data/noRotGridFine/","zero","ico_500",[0.1,5,100])
+makeGrid("data/noRotGridAlt/","zero","ico_160",[0.01,5,20])
 
 
 
