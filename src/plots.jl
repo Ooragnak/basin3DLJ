@@ -129,6 +129,28 @@ end
     out[j] = closestIndex
 end
 
+function sliceCartesian(grid,direction,sliceval)
+    @assert grid.isCartesian
+
+    xs = unique([p.translation.x for p in getPoints(grid)])
+    ys = unique([p.translation.y for p in getPoints(grid)])
+    zs = unique([p.translation.z for p in getPoints(grid)])
+
+    if direction == 'x'
+        slice = argmin(abs.(xs .- sliceval))
+        val = xs[slice]
+        return reshape(getPoints(grid)[findall(p -> p.translation.x == val,getPoints(grid))],length(ys),length(zs))
+    elseif direction == 'y'
+        slice = argmin(abs.(ys .- sliceval))
+        val = ys[slice]
+        return reshape(getPoints(grid)[findall(p -> p.translation.y == val,getPoints(grid)),length(xs)],length(zs))
+    else
+        slice = argmin(abs.(zs .- sliceval))
+        val = zs[slice]
+        return reshape(getPoints(grid)[findall(p -> p.translation.z == val,getPoints(grid))],length(xs),length(ys))
+    end
+end
+
 function plotBasinsIsosurface(basin;interpolate=nothing,ArrayType=nothing,energyrange=nothing,figsize=(2560,1440),fontsize=40,isorange = 1,interpolationResolution = 100, voxels=false)
     grid = basin.grid
     @assert grid.dim == 3 "Grid must be 3-dimensional"

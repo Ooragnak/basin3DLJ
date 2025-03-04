@@ -9,7 +9,7 @@ using BenchmarkTools
 using Base.Threads
 
 ################################################################
-ARRAYTYPE = ROCArray{Float32}
+ARRAYTYPE = CuArray{Float32}
 
 GLMakie.activate!()
 
@@ -79,10 +79,6 @@ axislegend(ax,"Minima")
 #scatter!(ax,[t.translation.x for t in path], [t.translation.y for t in path],markersize = 8)
 
 Colorbar(f2[1,0],p1)
-
-
-display(f2)
-
 paths = []
 transitions = findMinimumEnergyPaths.(Ref(tp),tp.minima)
 for t in transitions
@@ -94,12 +90,47 @@ for t in transitions
     end
 end
 
+display(f2)
+
+tpot2 = makeCartesianGrid(range(-2.0,1.25,500),range(-0.5,2.5,500),MullerBrown,"Test",diagonal=false)
+
+tp2 = gradDescent(tpot2)
+
+f2b = Figure(size=(2560,1440), fontsize=40)
+ax = Axis(f2b[1,1], title = "Müller-Brown-Potential", yautolimitmargin = (0, 0),)
+ax2 = Axis(f2b[1,2], title = "Basin of attraction", yautolimitmargin = (0, 0),)
+
+vecs = collect(keys(tp2.gridpoints))
+
+#p1 = heatmap!(ax,vecs, colorrange=(-150,75),highclip = :transparent,colormap = :lipari)
+p1 = contourf!(ax,vecs,colormap = :lipari,levels = range(-150,75,50), )
+
+
+for (i,minimum) in enumerate(tp2.minima)
+    tmin = filter(x -> tp2.gridpoints[x][2] == minimum, collect(keys(tp2.gridpoints)))
+    scatter!(ax2,[t.translation.x for t in tmin], [t.translation.y for t in tmin],markersize = 4)
+    scatter!(ax,minimum, markersize = 15, marker=:xcross, label = @sprintf "(%.3f, %.3f)" minimum.translation.x minimum.translation.y)
+end
+
+
+p2 = contour!(ax2,vecs,colormap = :lipari,levels = range(-150,75,50), )
+
+axislegend(ax,"Minima")
+
+
+Colorbar(f2b[1,0],p1)
+
+
+display(f2b)
+
+
+
 
 
 f3 = Figure(size=(2560,1440), fontsize=40)
-ax3 = Axis(f3[1,1], title = "Minimum energy paths of grid transition", yautolimitmargin = (0, 0),)
+ax3 = Axis(f3[1,1], title = "Minimum energy paths of grid transition")
 
-for path in paths
+for path in paths[[2,3]]
     plot!(ax3,[p.energy for p in path])
 end
 
@@ -130,58 +161,92 @@ end
 #parsedGridAlt =  parseMolgriGrid("tmp/noRotGridAlt/",ringpot3D,"Molgri-imported grid")
 parsedGrid =  parseMolgriGrid("data/noRotGrid/",ringpot3D,"Molgri-imported grid")
 #parsedGridFine =  parseMolgriGrid("tmp/norotgridfine/",ringpot3D,"Molgri-imported grid")
+
+parsedBasin = gradDescent(parsedGrid)
+
 display(f3d)
 
 f4 = Figure(size=(2560,1440), fontsize=40)
-s4 = Slider(f4[1,2], range = -5:0.01:5, startvalue = 0.0,horizontal=false)
+s4 = Slider(f4[1,3], range = -5:0.01:5, startvalue = 0.0,horizontal=false)
 
-plotTitle = lift(s4.value) do z
-    latexstring(L"View of interpolated potential at $z = %$(round(z,sigdigits=3)) $",)
+plotTitleA = lift(s4.value) do z
+    latexstring(L"View of potential at $z = %$(round(z,sigdigits=3)) $",)
 end
 
-xsvals = range(-4,4,400)
-ysvals = range(-4,4,400)
+plotTitleB = lift(s4.value) do z
+    latexstring(L"Watersheds of potential at $z = %$(round(z,sigdigits=3)) $",)
+end
 
-ax4 = Axis(f4[1,1], title = plotTitle, yautolimitmargin = (0, 0),xlabel="x",ylabel="y")
+xsvals = range(-4,4,300)
+ysvals = range(-4,4,300)
+
+ax4 = Axis(f4[1,1], title = plotTitleA, yautolimitmargin = (0, 0),xlabel="x",ylabel="y")
+ax4b = Axis(f4[1,2], title = plotTitleB, yautolimitmargin = (0, 0),xlabel="x",ylabel="y")
 
 #slice = lift(s4.value) do z
 #    [ringpot3D(x,y,z) for x in xsvals, y in ysvals]
 #end
 
-#slice = lift(s4.value) do z
-#    Array(interpolateSlice(parsedGrid,xsvals,ysvals,[z],power=10,ArrayType=ARRAYTYPE,closest=true))[:,:,1]
-#end
-
+slice = lift(s4.value) do z
+    [p.energy for p in sliceCartesian(newpot,'z',z)]
+end
 sliceBasin = lift(s4.value) do z
+    [findfirst(Ref(newbasin.gridpoints[p][2]) .== newbasin.minima) for p in sliceCartesian(newpot,'z',z)]
+end
+
+c = heatmap!(ax4,xsvals,ysvals,slice,colormap=:lipari,colorrange=(-20,60))
+d = heatmap!(ax4b,xsvals,ysvals,sliceBasin,colorrange=(1,length(newbasin.minima)),colormap=Makie.wong_colors()[1:length(newbasin.minima)])
+
+Colorbar(f4[1,0],c)
+
+display(f4)
+
+
+f5 = Figure(size=(2560,1440), fontsize=40)
+s5 = Slider(f5[1,3], range = -5:0.01:5, startvalue = 0.0,horizontal=false)
+
+plotTitleA2 = lift(s5.value) do z
+    latexstring(L"View of interpolated potential at $z = %$(round(z,sigdigits=3)) $",)
+end
+
+
+plotTitleB2 = lift(s5.value) do z
+    latexstring(L"Basins of interpolated potential at $z = %$(round(z,sigdigits=3)) $",)
+end
+
+xsvals = range(-4,4,300)
+ysvals = range(-4,4,300)
+
+ax5 = Axis(f5[1,1], title = plotTitleA2, yautolimitmargin = (0, 0),xlabel="x",ylabel="y")
+ax5b = Axis(f5[1,2], title = plotTitleB2, yautolimitmargin = (0, 0),xlabel="x",ylabel="y")
+
+
+slice = lift(s5.value) do z
+    Array(interpolateSlice(parsedGrid,xsvals,ysvals,[z],power=10,ArrayType=ARRAYTYPE,closest=true))[:,:,1]
+end
+
+sliceBasin = lift(s5.value) do z
     [findfirst(Ref(parsedBasin.gridpoints[p][2]) .== parsedBasin.minima) for p in interpolateSlice(parsedGrid,xsvals,ysvals,[z],power=10,ArrayType=ARRAYTYPE,closest=true,getPoints=true)[:,:,1]]
 end
 
 
-#slice = lift(s4.value) do z
-#    [findfirst(Ref(newbasin.gridpoints[p][2]) .== newbasin.minima) for p in interpolateSlice(newpot,xsvals,ysvals,[z],power=10,ArrayType=ARRAYTYPE,closest=true,getPoints=true)[:,:,1]]
-#end
+c = heatmap!(ax5,xsvals,ysvals,slice,colormap=:lipari,colorrange=(-20,60))
+d = heatmap!(ax5b,xsvals,ysvals,sliceBasin,colorrange=(1,length(parsedBasin.minima)),colormap=Makie.wong_colors()[1:length(parsedBasin.minima)])
 
+Colorbar(f5[1,0],c)
 
-d = heatmap!(ax4,xsvals,ysvals,sliceBasin,colorrange=(1,length(parsedBasin.minima)),colormap=Makie.wong_colors()[1:length(parsedBasin.minima)])
+display(f5)
 
-
-#c = heatmap!(ax4,xsvals,ysvals,slice,colormap=:lipari)
-#c = heatmap!(ax4,xsvals,ysvals,slice,colormap=:lipari,colorrange=(-20,60))
-#Colorbar(f4[1,0],c)
-
-display(f4)
-empty!(f4)
-
-parsedVol = Array(interpolateSlice(parsedGrid,range(-5,5,500),range(-5,5,500),range(-5,5,500),power=12,ArrayType=ARRAYTYPE,closest=true))
+parsedVol = Array(interpolateSlice(parsedGrid,range(-5,5,200),range(-5,5,200),range(-5,5,200),power=12,ArrayType=ARRAYTYPE,closest=true))
 
 
 volume(-1 .* parsedVol)
 
 
-plotBasinsIsosurface(newbasin)
-parsedBasin = gradDescent(parsedGrid)
-plotBasinsIsosurface(parsedBasin,interpolate=[(-5,5),(-5,5),(-5,5)],ArrayType=ARRAYTYPE,interpolationResolution=400)
-plotBasinsIsosurface(parsedBasin,interpolate=[(-5,5),(-5,5),(-5,5)],ArrayType=ARRAYTYPE,interpolationResolution=80,voxels=true)
+f_a = plotBasinsIsosurface(newbasin,energyrange=(-12,12))
+f_b = plotBasinsIsosurface(parsedBasin,interpolate=[(-5,5),(-5,5),(-5,5)],ArrayType=ARRAYTYPE,interpolationResolution=250,energyrange=(-12,12))
+f_c = plotBasinsIsosurface(parsedBasin,interpolate=[(-5,5),(-5,5),(-5,5)],ArrayType=ARRAYTYPE,interpolationResolution=80,voxels=true,energyrange=(-12,12))
+f_d = plotBasinsIsosurface(newbasin,voxels=true,energyrange=(-12,12))
 
 
 # Example benchmarks showing the impact of GPU computing for single and double precision floating point
@@ -196,3 +261,19 @@ plotBasinsIsosurface(parsedBasin,interpolate=[(-5,5),(-5,5),(-5,5)],ArrayType=AR
 #
 #julia> @time parsedVol = Array(interpolateSlice(parsedGridAlt,range(-5,5,200),range(-5,5,200),range(-5,5,200),power=12,ArrayType=ROCArray{Float32},closest=false));
 #  2.174526 seconds (280 allocations: 336.068 MiB, 5.69% gc time)
+
+display(f1)
+
+display(f2)
+display(f3)
+display(f2b)
+
+display(f4)
+display(f5)
+
+display(f3d)
+
+display(f_a)
+display(f_b)
+display(f_c)
+display(f_d)
