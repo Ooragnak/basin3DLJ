@@ -18,3 +18,47 @@ function ringpot3D(x,y,z)
     r, θ, ϕ = toSpherical(x,y,z)
     return ringpot(r,θ) * (sin(ϕ)^2 + 1)
 end
+
+
+struct LJParticle
+    t::Position
+    ϵ::Float64
+    σ::Float64
+end
+
+struct LJCluster
+    particles::AbstractArray{LJParticle}
+end
+
+function potential(p::LJParticle,t::Position)
+    r = distance(p.t,t)
+    return 4 * p.ϵ * ((p.σ/r)^12 - (p.σ/r)^6)
+end
+
+function potential(c::LJCluster,t::Position)
+    pot = 0
+    for p in c
+        pot += potential(p,t)
+    end
+    return pot
+end
+
+function potential(c::LJCluster,x,y,z)
+    pot = 0
+    for p in c
+        pot += potential(p,Cartesian3D(x,y,z))
+    end
+    return pot
+end
+
+function generateSpherePacking(r,is,js,ks) 
+    centers = [Cartesian3D(r*(2i + mod(j+k,2)), r*(sqrt(3) * (j + 1/3*mod(k,2))), r*(sqrt(24)/3 * k)) for k in ks, j in js, i in is]
+    return centers
+end
+
+function generateCluster(r,)
+    pack = generateSpherePacking(1,1:3,1:3,1:3)
+    center = pack[2,2,2]
+    neighbors = findall(x -> distance(x,center) <= r*2.1,pack)
+    close = pack[neighbors]
+end
