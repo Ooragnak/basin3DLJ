@@ -14,3 +14,8 @@
 - The algorithm should be applicable to arbitrary dimensional grids created by molgri
 - The resulting basin of attraction should be visualized (at least the translation components)
 - It should be possible to generate and save efficiently a path from any point in the grid
+
+# Future plans
+- Molgri diagonal neighbors
+- implement Lennard Jones Potential in 3D ()
+- Positionen der Teilchen (je LJ Potential hexagonales cluster LJ Teilchen)
