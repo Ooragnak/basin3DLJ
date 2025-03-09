@@ -196,10 +196,10 @@ function plotBasinsIsosurface(basin;interpolate=nothing,ArrayType=nothing,energy
         if voxels
             basinPoints = [basin.gridpoints[p][2] == m ? p.energy : NaN for p in points]
             isOutside = @lift x -> !(x <= $isoval)
-            voxels!(ax,xlimits,ylimits,zlimits,basinPoints, colormap = fill(Makie.wong_colors()[i],100),is_air = isOutside)
+            voxels!(ax,xlimits,ylimits,zlimits,basinPoints, colormap = fill(Makie.wong_colors()[mod1(i,7)],100),is_air = isOutside)
         else 
             basinPoints = [basin.gridpoints[p][2] == m ? p.energy : NaN for p in points]
-            volume!(ax,xlimits,ylimits,zlimits,basinPoints , algorithm = :iso, isovalue = isoval, isorange = isorange ,colormap = fill(Makie.wong_colors()[i],100) , interpolate = true)
+            volume!(ax,xlimits,ylimits,zlimits,basinPoints , algorithm = :iso, isovalue = isoval, isorange = isorange ,colormap = fill(Makie.wong_colors()[mod1(i,7)],100) , interpolate = true)
         end
     end
     return f
