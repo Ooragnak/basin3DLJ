@@ -9,7 +9,21 @@ using BenchmarkTools
 using Base.Threads
 
 ################################################################
-ARRAYTYPE = CuArray{Float32}
+try 
+    ROCArray{Float32}(rand(10))
+    global ARRAYTYPE = ROCArray{Float32}
+    @info "Using ROCm backend for GPU computation."
+catch
+    try 
+        CuArray{Float32}(rand(10))
+        global ARRAYTYPE = CuArray{Float32}
+        @info "Using CUDA backend for GPU computation."
+    catch
+        global ARRAYTYPE = Array{Float32}
+        @warn "Neither CUDA nor ROCm driver found, falling back to CPU arrays. Provide ARRAYTYPE manually to use a different default backend."
+    end
+end
+    
 
 GLMakie.activate!()
 
@@ -135,7 +149,7 @@ for path in paths[[2,3]]
 end
 
 
-newpot  = makeCartesianGrid(range(-6.01,6,100),range(-6.01,6,100),range(-6.01,6,100),ringpot3D,"Test",diagonal=false)
+newpot  = makeCartesianGrid(range(-6.01,6,100),range(-6.01,6,100),range(-6.01,6,100),ringpot3D,"Test",diagonal=true)
 newbasin = gradDescent(newpot)
 
 paths3d = []
@@ -277,3 +291,38 @@ display(f_a)
 display(f_b)
 display(f_c)
 display(f_d)
+
+
+defaultCluster = vcat(fill((1,2*2^(-1/6)),12),nothing)
+ABABcluster1 = generateCluster(1,defaultCluster)
+
+#LJpot =  parseMolgriGrid("tmp/norotgridfine/",(x,y,z) -> potential(ABABcluster1,x,y,z),"Lennard-Jones Cluster on Molgri-imported grid")
+LJpot  = makeCartesianGrid(range(-4.1,4,160),range(-4.1,4,160),range(-4.1,4,160),(x,y,z) -> potential(ABABcluster1,x,y,z),"Test",diagonal=true)
+LJbasin = gradDescent(LJpot)
+
+fLJ = plotBasinsIsosurface(LJbasin,energyrange=(-6,-1))
+#fLJ = plotBasinsIsosurface(LJbasin,energyrange=(-6,-1),interpolate=[(-4,4),(-4,4),(-4,4)],ArrayType=ARRAYTYPE,interpolationResolution=150)
+
+sortedLJ = sort(LJbasin.minima,by=x -> x.energy)
+sortedLJ = sort(LJbasin.grid.points,by=x -> x.energy)
+
+
+LJtransitions = findMinimumEnergyPaths(LJbasin,sortedLJ[1])
+
+f3d = Figure(size=(2560,1440), fontsize=40)
+ax3d = Axis3(f3d[1,1], title = "Minimum energy paths of grid transition")
+
+paths3d = []
+
+for m in LJbasin.minima 
+    scatter!(ax3d,m,markersize = 15, marker=:xcross, label = pretty(m,3))
+end
+
+meshscatter!(ax3d,[p.t for p in ABABcluster1.particles],markersize=0.05)
+
+for p in LJtransitions
+    path = reverse(tracePath(LJbasin,p[1]))
+    append!(path, tracePath(LJbasin,p[2]))
+    scatter!(ax3d,path,markersize = 4,color=:grey)
+    push!(paths3d,path)
+end
