@@ -155,7 +155,7 @@ function plotBasinsIsosurface(basin;interpolate=nothing,ArrayType=nothing,energy
     grid = basin.grid
     @assert grid.dim == 3 "Grid must be 3-dimensional"
     @assert !isnothing(interpolate) || grid.isCartesian "Missing required interpolation arguments for non-Cartesian grid."
-    @assert isnothing(interpolate) || !isnothing(interpolate) "Missing required interpolation arguments - Provide \"ArrayType\" for interpolation."
+    @assert isnothing(interpolate) || !isnothing(ArrayType) "Missing required interpolation arguments - Provide \"ArrayType\" for interpolation."
 
     if !isnothing(interpolate)
         xlimits = extrema(interpolate[1])
@@ -196,7 +196,7 @@ function plotBasinsIsosurface(basin;interpolate=nothing,ArrayType=nothing,energy
         if voxels
             basinPoints = [basin.gridpoints[p][2] == m ? p.energy : NaN for p in points]
             isOutside = @lift x -> !(x <= $isoval)
-            voxels!(ax,xlimits,ylimits,zlimits,basinPoints, colormap = fill(Makie.wong_colors()[mod1(i,7)],100),is_air = isOutside)
+            voxels!(ax,xlimits,ylimits,zlimits,basinPoints, colormap = fill(Makie.wong_colors()[mod1(i,7)],100),is_air = isOutside,colorrange=(-1,1))
         else 
             basinPoints = [basin.gridpoints[p][2] == m ? p.energy : NaN for p in points]
             volume!(ax,xlimits,ylimits,zlimits,basinPoints , algorithm = :iso, isovalue = isoval, isorange = isorange ,colormap = fill(Makie.wong_colors()[mod1(i,7)],100) , interpolate = true)
