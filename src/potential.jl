@@ -32,7 +32,11 @@ end
 
 function potential(p::LJParticle,t::Position)
     r = distance(p.t,t)
-    return 4 * p.ϵ * ((p.σ/r)^12 - (p.σ/r)^6)
+    if iszero(r)
+        return Inf64
+    else
+        return 4 * p.ϵ * ((p.σ/r)^12 - (p.σ/r)^6)
+    end
 end
 
 function potential(c::LJCluster,t::Position)
@@ -45,7 +49,7 @@ end
 
 function potential(c::LJCluster,x,y,z)
     pot = 0
-    for p in c
+    for p in c.particles
         pot += potential(p,Cartesian3D(x,y,z))
     end
     return pot
@@ -56,9 +60,17 @@ function generateSpherePacking(r,is,js,ks)
     return centers
 end
 
-function generateCluster(r,)
-    pack = generateSpherePacking(1,1:3,1:3,1:3)
+function generateCluster(r,LJTypes)
+    pack = generateSpherePacking(1,-1:1,-1:1,-1:1)
     center = pack[2,2,2]
     neighbors = findall(x -> distance(x,center) <= r*2.1,pack)
     close = pack[neighbors]
+    LJParticles = []
+    for (i,c) in enumerate(close)
+        if !isnothing(LJTypes[i])
+            push!(LJParticles,LJParticle(c,LJTypes[i]...))
+        end
+    end
+    return LJCluster(LJParticles)
 end
+
