@@ -326,3 +326,12 @@ for p in LJtransitions
     scatter!(ax3d,path,markersize = 4,color=:grey)
     push!(paths3d,path)
 end
+
+ImportedPot =  parseMolgriGrid("tmp/norotgridfine/",(x,y,z) -> potential(ABABcluster1,x,y,z),"Lennard-Jones Cluster on Molgri-imported grid")
+diagonalSphericalPot = getDiagonalNeighbors(ImportedPot,true)
+diagSphericalBasin = gradDescent(diagonalSphericalPot)
+importedBasin = gradDescent(ImportedPot)
+
+
+fLJ2 = plotBasinsIsosurface(diagSphericalBasin,energyrange=(-6,-1),interpolate=[(-4,4),(-4,4),(-4,4)],ArrayType=ARRAYTYPE,interpolationResolution=120)
+fLJ3 = plotBasinsIsosurface(importedBasin,energyrange=(-6,-1),interpolate=[(-4,4),(-4,4),(-4,4)],ArrayType=ARRAYTYPE,interpolationResolution=120)
