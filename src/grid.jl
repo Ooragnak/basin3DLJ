@@ -469,3 +469,32 @@ function parseMolgriGrid(folder::AbstractString,V,properties,isCartesian=false)
     end
 
 end
+
+function getDiagonalNeighbors(grid::PointGrid{K},restrictAngularNeighbors=true) where {K <: AbstractPoint}
+    newDistances = Dict{K,AbstractVector{Tuple{Int64,Float64}}}()
+    for p in grid.points
+        neighbors = Tuple{Int64,Int64}[]
+        distances = Tuple{Int64,Float64}[]
+
+        for n in grid.distances[p]
+            append!(neighbors,[(m[1],n[1]) for m in grid.distances[grid.points[n[1]]]])
+        end
+
+        neighbors = filter(x -> count(y -> first(y)==x[1],neighbors) == 2,neighbors)
+
+        for pointIndex in unique(first.(neighbors))
+            firstNeighbor = neighbors[findfirst(first.(neighbors) .== pointIndex)][2]
+            secondNeighbor = neighbors[findlast(first.(neighbors) .== pointIndex)][2]
+            if !in(secondNeighbor,first.(grid.distances[grid.points[firstNeighbor]]))
+                push!(distances,(pointIndex,distance(p,grid.points[pointIndex])))
+            elseif !restrictAngularNeighbors
+                push!(distances,(pointIndex,distance(p,grid.points[pointIndex])))
+            end
+        end
+
+        append!(distances,grid.distances[p])
+        push!(newDistances,p => distances)
+    end
+
+    return PointGrid(grid.dim,grid.points,newDistances,grid.properties,grid.isCartesian)
+end
