@@ -55,7 +55,7 @@ end
 struct PointGrid{K <: AbstractPoint} <: Grid{K}
     dim::Int64
     points::Vector{K}
-    distances::AbstractDict{K,AbstractVector{Tuple{Int64,Float64}}}
+    distances::Dict{K,<: AbstractVector{Tuple{Int64,Float64}}}
     properties::AbstractString
     isCartesian::Bool
 end
@@ -149,7 +149,7 @@ import Base: convert
 convert(::Type{Cartesian2D},t::Polar) = Cartesian2D(toCartesian(t.r,t.θ)...)
 convert(::Type{Cartesian3D},t::Spherical) = Cartesian3D(toCartesian(t.r,t.θ,t.ϕ)...)
 convert(::Type{Polar},t::Cartesian2D) = Polar(toPolar(t.x,t.y)...)
-convert(::Type{Spherical},t::Spherical) = Spherical(toSpherical(t.x, t.y, t.z)...)
+convert(::Type{Spherical},t::Cartesian3D) = Spherical(toSpherical(t.x, t.y, t.z)...)
 convert(::Type{Point{T}},p::Point) where {T <: Position} = Point(convert(T,p.translation),p.energy)
 convert(::Type{T},t::T) where {T} = t
 
@@ -497,4 +497,30 @@ function getDiagonalNeighbors(grid::PointGrid{K},restrictAngularNeighbors=true) 
     end
 
     return PointGrid(grid.dim,grid.points,newDistances,grid.properties,grid.isCartesian)
+end
+
+function rotate(grid::PointGrid,args...)
+    rotatedPoints = [rotate(p,args...) for p in grid.points]
+    rotatedDistances = Dict(rotate(key,args...) => val for (key,val) in grid.distances)
+    return PointGrid(grid.dim,rotatedPoints,rotatedDistances,grid.properties,false)
+end
+
+function rotate(point::K,args...) where {K <: Point}
+    return K(rotate(point.translation,args...),point.energy)
+end
+
+function rotate(translation::Polar,θ)
+    return Polar(translation.r,translation.θ + θ)
+end
+
+function rotate(translation::Spherical,θ,ϕ)
+    return Spherical(translation.r,translation.θ + θ,translation.ϕ + ϕ)
+end
+
+function rotate(translation::Cartesian2D,args...)
+    convert(Cartesian2D,rotate(convert(Polar,translation),args...))
+end
+
+function rotate(translation::Cartesian3D,args...)
+    convert(Cartesian3D,rotate(convert(Spherical,translation),args...))
 end
