@@ -38,9 +38,10 @@ struct LJCluster
     particles::AbstractArray{LJParticle}
 end
 
-function potential(p::LJParticle,t::Position)
-    r = distance(p.t,t)
-    if iszero(r)
+function potential(p::LJParticle,x,y,z;replaceNaN=false)
+    t1 = convert(Cartesian3D,p.t)
+    r = sqrt((t1.x - x)^2 + (t1.y - y)^2 + (t1.z - z)^2)
+    if iszero(r) && replaceNaN
         return Inf64
     else
         return 4 * p.ϵ * ((p.σ/r)^12 - (p.σ/r)^6)
@@ -48,25 +49,34 @@ function potential(p::LJParticle,t::Position)
 end
 
 function potential(c::LJCluster,t::Position)
-    pot = 0
-    for p in c
-        pot += potential(p,t)
-    end
-    return pot
+    p = convert(Cartesian3D,t)
+    return potential(c,p.x,p.y,p.z)
 end
 
-function potential(c::LJCluster,x,y,z)
-    pot = 0
+function potential(c::LJCluster,x,y,z;kwargs...)
+    #pot = 0
+    #for p in c.particles
+    #    pot += potential(p,x,y,z;kwargs...)
+    #end
+    return sum(potential.(c.particles,x,y,z;kwargs...))
+end
+
+function generateFunctionString(c::LJCluster)
+    output = "LJCluster(x,y,z) = 0 "
     for p in c.particles
-        pot += potential(p,Cartesian3D(x,y,z))
+        t1 = convert(Cartesian3D,p.t)
+        output = output * "+ 4 * $(p.ϵ) * (($(p.σ)/(sqrt(($(t1.x) - x)^2 + ($(t1.y) - y)^2 + ($(t1.z) - z)^2)))^12 - ($(p.σ)/(sqrt(($(t1.x) - x)^2 + ($(t1.y) - y)^2 + ($(t1.z) - z)^2)))^6) "
     end
-    return pot
+    return output
 end
 
 function generateSpherePacking(r,is,js,ks) 
     centers = [Cartesian3D(r*(2i + mod(j+k,2)), r*(sqrt(3) * (j + 1/3*mod(k,2))), r*(sqrt(24)/3 * k)) for k in ks, j in js, i in is]
     return centers
 end
+
+
+LJCluster(x,y,z) = 0 + 4 * 1.0 * ((1.7817974362806785/(sqrt((-1.0 - x)^2 + (-1.7320508075688772 - y)^2 + (0.0 - z)^2)))^12 - (1.7817974362806785/(sqrt((-1.0 - x)^2 + (-1.7320508075688772 - y)^2 + (0.0 - z)^2)))^6) + 4 * 1.0 * ((1.7817974362806785/(sqrt((-1.0 - x)^2 + (0.5773502691896257 - y)^2 + (-1.6329931618554518 - z)^2)))^12 - (1.7817974362806785/(sqrt((-1.0 - x)^2 + (0.5773502691896257 - y)^2 + (-1.6329931618554518 - z)^2)))^6) + 4 * 1.0 * ((1.7817974362806785/(sqrt((-2.0 - x)^2 + (0.0 - y)^2 + (0.0 - z)^2)))^12 - (1.7817974362806785/(sqrt((-2.0 - x)^2 + (0.0 - y)^2 + (0.0 - z)^2)))^6) + 4 * 1.0 * ((1.7817974362806785/(sqrt((-1.0 - x)^2 + (0.5773502691896257 - y)^2 + (1.6329931618554518 - z)^2)))^12 - (1.7817974362806785/(sqrt((-1.0 - x)^2 + (0.5773502691896257 - y)^2 + (1.6329931618554518 - z)^2)))^6) + 4 * 1.0 * ((1.7817974362806785/(sqrt((-1.0 - x)^2 + (1.7320508075688772 - y)^2 + (0.0 - z)^2)))^12 - (1.7817974362806785/(sqrt((-1.0 - x)^2 + (1.7320508075688772 - y)^2 + (0.0 - z)^2)))^6) + 4 * 1.0 * ((1.7817974362806785/(sqrt((0.0 - x)^2 + (-1.1547005383792517 - y)^2 + (-1.6329931618554518 - z)^2)))^12 - (1.7817974362806785/(sqrt((0.0 - x)^2 + (-1.1547005383792517 - y)^2 + (-1.6329931618554518 - z)^2)))^6) + 4 * 1.0 * ((1.7817974362806785/(sqrt((1.0 - x)^2 + (-1.7320508075688772 - y)^2 + (0.0 - z)^2)))^12 - (1.7817974362806785/(sqrt((1.0 - x)^2 + (-1.7320508075688772 - y)^2 + (0.0 - z)^2)))^6) + 4 * 1.0 * ((1.7817974362806785/(sqrt((0.0 - x)^2 + (-1.1547005383792517 - y)^2 + (1.6329931618554518 - z)^2)))^12 - (1.7817974362806785/(sqrt((0.0 - x)^2 + (-1.1547005383792517 - y)^2 + (1.6329931618554518 - z)^2)))^6) + 4 * 1.0 * ((1.7817974362806785/(sqrt((1.0 - x)^2 + (0.5773502691896257 - y)^2 + (-1.6329931618554518 - z)^2)))^12 - (1.7817974362806785/(sqrt((1.0 - x)^2 + (0.5773502691896257 - y)^2 + (-1.6329931618554518 - z)^2)))^6) + 4 * 1.0 * ((1.7817974362806785/(sqrt((0.0 - x)^2 + (0.0 - y)^2 + (0.0 - z)^2)))^12 - (1.7817974362806785/(sqrt((0.0 - x)^2 + (0.0 - y)^2 + (0.0 - z)^2)))^6) + 4 * 1.0 * ((1.7817974362806785/(sqrt((1.0 - x)^2 + (0.5773502691896257 - y)^2 + (1.6329931618554518 - z)^2)))^12 - (1.7817974362806785/(sqrt((1.0 - x)^2 + (0.5773502691896257 - y)^2 + (1.6329931618554518 - z)^2)))^6) + 4 * 1.0 * ((1.7817974362806785/(sqrt((1.0 - x)^2 + (1.7320508075688772 - y)^2 + (0.0 - z)^2)))^12 - (1.7817974362806785/(sqrt((1.0 - x)^2 + (1.7320508075688772 - y)^2 + (0.0 - z)^2)))^6) 
 
 function generateCluster(r,LJTypes)
     pack = generateSpherePacking(1,-1:1,-1:1,-1:1)
