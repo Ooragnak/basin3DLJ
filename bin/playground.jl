@@ -335,3 +335,30 @@ importedBasin = gradDescent(ImportedPot)
 
 fLJ2 = plotBasinsIsosurface(diagSphericalBasin,energyrange=(-6,-1),interpolate=[(-4,4),(-4,4),(-4,4)],ArrayType=ARRAYTYPE,interpolationResolution=120)
 fLJ3 = plotBasinsIsosurface(importedBasin,energyrange=(-6,-1),interpolate=[(-4,4),(-4,4),(-4,4)],ArrayType=ARRAYTYPE,interpolationResolution=120)
+
+xs = -2:1:2
+ys = -1:0.5:1
+normal = [simplepot(x,y) for x in xs, y in ys]
+rot = [rotated2DPot(simplepot,x,y,π/4) for x in xs, y in ys]
+ 
+
+f7 = Figure(size=(2560,1440), fontsize=40)
+ax8 = Axis(f7[1,1], title = L"f(x,y) = x^2 + 10 \cdot y^2 ", yautolimitmargin = (0, 0),xlabel="x",ylabel="y")
+ax7 = Axis(f7[1,2], title = L"f(x,y) = x^2 + 10 \cdot y^2,\text{ rotated by }\frac{π}{4} ", yautolimitmargin = (0, 0),xlabel="x",ylabel="y")
+
+
+heatmap!(ax7,xs,ys,rot,colormap=:lipari)
+for x in xs, y in ys
+    data = rotated2DPot(simplepot,x,y,π/4)
+    txtcolor = data < 11 ? :white : :black
+    text!(ax7, "$(round(data, sigdigits = 3))", position = (x, y),
+        color = txtcolor, align = (:center, :center),space=:data)
+end
+
+heatmap!(ax8,xs,ys,normal,colormap=:lipari)
+for x in xs, y in ys
+    data = simplepot(x,y)
+    txtcolor = data < 11 ? :white : :black
+    text!(ax8, "$(round(data, sigdigits = 3))", position = (x, y),
+        color = txtcolor, align = (:center, :center),space=:data)
+end

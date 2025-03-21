@@ -20,6 +20,14 @@ function ringpot3D(x,y,z)
 end
 
 
+function rotated2DPot(pot,x,y,rotation)
+    r, θ = toPolar(x,y)
+    x2, y2 = toCartesian(r,θ+rotation)
+    return pot(x2,y2)
+end
+
+simplepot(x,y) = x^2 + 10*y^2
+
 struct LJParticle
     t::Position
     ϵ::Float64
