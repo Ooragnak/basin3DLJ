@@ -297,11 +297,16 @@ defaultCluster = vcat(fill((1,2*2^(-1/6)),12),nothing)
 ABABcluster1 = generateCluster(1,defaultCluster)
 
 #LJpot =  parseMolgriGrid("tmp/norotgridfine/",(x,y,z) -> potential(ABABcluster1,x,y,z),"Lennard-Jones Cluster on Molgri-imported grid")
-LJpot  = makeCartesianGrid(range(-4.1,4,160),range(-4.1,4,160),range(-4.1,4,160),(x,y,z) -> potential(ABABcluster1,x,y,z),"Test",diagonal=true)
+LJpot  = makeCartesianGrid(range(-4.1,4,80),range(-4.1,4,80),range(-4.1,4,80),(x,y,z) -> potential(ABABcluster1,x,y,z),"Test",diagonal=true)
 LJbasin = gradDescent(LJpot)
 
 fLJ = plotBasinsIsosurface(LJbasin,energyrange=(-6,-1))
 #fLJ = plotBasinsIsosurface(LJbasin,energyrange=(-6,-1),interpolate=[(-4,4),(-4,4),(-4,4)],ArrayType=ARRAYTYPE,interpolationResolution=150)
+
+LJpotB = rotate(LJpot,π/16,π/8)
+LJbasinB = gradDescent(LJpotB)
+
+fLJB = plotBasinsIsosurface(LJbasinB,energyrange=(-6,-1),interpolate=[(-4,4),(-4,4),(-4,4)],ArrayType=ARRAYTYPE,interpolationResolution=100)
 
 sortedLJ = sort(LJbasin.minima,by=x -> x.energy)
 sortedLJ = sort(LJbasin.grid.points,by=x -> x.energy)
@@ -327,14 +332,23 @@ for p in LJtransitions
     push!(paths3d,path)
 end
 
-ImportedPot =  parseMolgriGrid("tmp/norotgridfine/",(x,y,z) -> potential(ABABcluster1,x,y,z),"Lennard-Jones Cluster on Molgri-imported grid")
+ImportedPot =  parseMolgriGrid("data/noRotGridFine/",(x,y,z) -> potential(ABABcluster1,x,y,z),"Lennard-Jones Cluster on Molgri-imported grid")
 diagonalSphericalPot = getDiagonalNeighbors(ImportedPot,true)
+
 diagSphericalBasin = gradDescent(diagonalSphericalPot)
 importedBasin = gradDescent(ImportedPot)
 
+diagonalSphericalPotB = getDiagonalNeighbors(rotate(ImportedPot,π/4,0),true)
+diagSphericalBasinB = gradDescent(diagonalSphericalPotB)
 
 fLJ2 = plotBasinsIsosurface(diagSphericalBasin,energyrange=(-6,-1),interpolate=[(-4,4),(-4,4),(-4,4)],ArrayType=ARRAYTYPE,interpolationResolution=120)
 fLJ3 = plotBasinsIsosurface(importedBasin,energyrange=(-6,-1),interpolate=[(-4,4),(-4,4),(-4,4)],ArrayType=ARRAYTYPE,interpolationResolution=120)
+fLJ4 = plotBasinsIsosurface(diagSphericalBasinB,energyrange=(-6,-1),interpolate=[(-4,4),(-4,4),(-4,4)],ArrayType=ARRAYTYPE,interpolationResolution=120)
+
+#using IntervalRootFinding, IntervalArithmetic, ForwardDiff
+#LJpotential(x) = potential(ABABcluster1,x[1],x[2],x[3],replaceNaN=false)
+#rts = roots(x -> ForwardDiff.gradient(LJpotential,x),[interval(-4,4),interval(-4,4),interval(-4,4)],abstol=1e-5)
+#tstpot(x) = 4 * 1 * ((2/(x[1]^2+x[2]^2+x[3]^2))^12 - (2/(x[1]^2+x[2]^2+x[3]^2))^6)
 
 xs = -2:1:2
 ys = -1:0.5:1
