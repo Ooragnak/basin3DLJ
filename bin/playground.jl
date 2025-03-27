@@ -332,7 +332,9 @@ for p in LJtransitions
     push!(paths3d,path)
 end
 
-ImportedPot =  parseMolgriGrid("data/noRotGridFine/",(x,y,z) -> potential(ABABcluster1,x,y,z),"Lennard-Jones Cluster on Molgri-imported grid")
+#ImportedPot =  parseMolgriGrid("data/noRotGridFine/",(x,y,z) -> potential(ABABcluster1,x,y,z),"Lennard-Jones Cluster on Molgri-imported grid")
+ImportedPot =  parseMolgriGrid("data/noRotGridFine2/",(x,y,z) -> potential(ABABcluster1,x,y,z),"Lennard-Jones Cluster on Molgri-imported grid")
+
 diagonalSphericalPot = getDiagonalNeighbors(ImportedPot,true)
 
 diagSphericalBasin = gradDescent(diagonalSphericalPot)
@@ -376,3 +378,4 @@ for x in xs, y in ys
     text!(ax8, "$(round(data, sigdigits = 3))", position = (x, y),
         color = txtcolor, align = (:center, :center),space=:data)
 end
+

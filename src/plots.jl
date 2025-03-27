@@ -204,3 +204,25 @@ function plotBasinsIsosurface(basin;interpolate=nothing,ArrayType=nothing,energy
     end
     return f
 end
+
+function plot2DPolarwatersheds(basin,basinTitle,potTitle,filename,zlabel)
+    CairoMakie.activate!()
+    f = Figure(size=(2560,1440), fontsize=40)
+    ax = PolarAxis(f[1,1], title = potTitle)
+    ax2 = PolarAxis(f[1,2], title = basinTitle)
+
+    p1 = contourf!(ax,basin.grid.points,colormap = :lipari,levels=75)
+
+    translate!(p1,0,0,-1000)
+
+    for minimum in basin.minima
+        tmin = filter(x -> basin.gridpoints[x][2] == minimum, collect(keys(basin.gridpoints)))
+        scatter!(ax2,[t.translation.θ for t in tmin], [t.translation.r for t in tmin],markersize = 8)
+    end
+
+    p2 = scatter!(ax2,[t.translation.θ for t in basin.minima], [t.translation.r for t in basin.minima], color = :red)
+
+    Colorbar(f[1,0],p1,label=zlabel)
+
+    save(string("plots/",filename),f)
+end
