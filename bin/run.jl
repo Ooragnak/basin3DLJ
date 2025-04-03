@@ -21,13 +21,49 @@ catch
     end
 end
 
+
+################
+# 2D Cartesian Grids 
+################
+rotatedMullerBrown(x,y) = rotated2DPot(MullerBrown,x,y,-3π/16)
+
+cartesian500_mbpotpot_grid = makeCartesianGrid(range(-2.0,1.25,500),range(-0.5,2.5,500),MullerBrown,"Müller-Brown-Potential",diagonal=true)
+rotated_cartesian500_mbpotpot_grid = makeCartesianGrid(range(-2.0,1.25,500),range(-0.5,2.5,500),rotatedMullerBrown,"Müller-Brown-Potential",diagonal=true)
+
+cartesian500_mbpotpot_basin = gradDescent(cartesian500_mbpotpot_grid)
+rotated_cartesian500_mbpotpot_basin = gradDescent(rotated_cartesian500_mbpotpot_grid)
+
+cartesian100_mbpotpot_grid = makeCartesianGrid(range(-2.0,1.25,100),range(-0.5,2.5,100),MullerBrown,"Müller-Brown-Potential",diagonal=true)
+rotated_cartesian100_mbpotpot_grid = makeCartesianGrid(range(-2.0,1.25,100),range(-0.5,2.5,100),rotatedMullerBrown,"Müller-Brown-Potential",diagonal=true)
+
+cartesian100_mbpotpot_basin = gradDescent(cartesian100_mbpotpot_grid)
+rotated_cartesian100_mbpotpot_basin = gradDescent(rotated_cartesian100_mbpotpot_grid)
+
+cartesian1000_mbpotpot_grid = makeCartesianGrid(range(-2.0,1.25,1000),range(-0.5,2.5,1000),MullerBrown,"Müller-Brown-Potential",diagonal=true)
+cartesian1000_mbpotpot_basin = gradDescent(cartesian1000_mbpotpot_grid)
+
+
+
+plot2DCartesianWatersheds(cartesian500_mbpotpot_basin,"Basins of attraction", "Müller-Brown potential", "cartesian500.pdf",L"V(x,y)",lvl=range(-150,75,50))
+
+plot2DCartesianWatersheds(cartesian100_mbpotpot_basin,"Basins of attraction", "Müller-Brown potential", "cartesianMB100.pdf",L"V(x,y)",lvl=range(-150,75,50), msize = 8)
+
+compare2DCartesianWatersheds([cartesian100_mbpotpot_basin,rotated_cartesian100_mbpotpot_basin,cartesian500_mbpotpot_basin,rotated_cartesian500_mbpotpot_basin],["100x100", "100x100, rotated by 33.75°","500x500", "500x500, rotated by 33.75°"],"compareWatershedsMB.png",lvl=range(-150,75,50),msizes=[8,8,4,4])
+
+plotMEPs2D(cartesian1000_mbpotpot_basin,"MEPs on Müller-Brown Potential", "Energy along the MEPs","mbMEPS.pdf",lvl=range(-150,75,50))
+
+################
+# 2D Polar Grids 
+################
+
 polar300_ringpot_grid = makePolarGrid(range(0.1,5,300),300,ringpot,"Ring Potential",nudge = true)
 
 polar300_ringpot_basin = gradDescent(polar300_ringpot_grid)
 
-plot2DPolarwatersheds(polar300_ringpot_basin,"Polar Model Potential", "Basins of Attraction", "polarRingpot300.pdf",L"V(r,\theta)")
+plot2DPolarwatersheds(polar300_ringpot_basin,0.5,"Basins of attraction", "Polar model potential", "Core-sets(ϵ = 0.5)", "polarRingpot300.pdf",L"V(r,\theta)")
 
+polar100_ringpot_grid = makePolarGrid(range(0.1,5,50),100,ringpot,"Ring Potential",nudge = true)
 
+polar100_ringpot_basin = gradDescent(polar100_ringpot_grid)
 
-
-
+plot2DPolarwatersheds(polar100_ringpot_basin,0.5,"Basins of attraction", "Polar model potential", "Core-sets (ϵ = 0.5)", "polarRingpot100.pdf",L"V(r,\theta)")
