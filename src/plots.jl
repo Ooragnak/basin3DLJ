@@ -254,8 +254,8 @@ end
 function plot2DCartesianWatersheds(basin,basinTitle,potTitle,filename,zlabel;lvl = 75, msize = 4)
 
     f = Figure(size=(2560,1440), fontsize=40)
-    ax = Axis(f[1,1], title = potTitle, yautolimitmargin = (0, 0),)
-    ax2 = Axis(f[1,2], title = basinTitle, yautolimitmargin = (0, 0),)
+    ax = Axis(f[1,1], title = potTitle, yautolimitmargin = (0, 0), xlabel="x", ylabel="y")
+    ax2 = Axis(f[1,2], title = basinTitle, yautolimitmargin = (0, 0), xlabel="x", ylabel="y")
 
     vecs = collect(keys(basin.gridpoints))
 
@@ -282,12 +282,12 @@ function compare2DCartesianWatersheds(basins,titles,filename;lvl = 75, msizes = 
     @assert length(basins) == length(titles) == 4
     
     f = Figure(size=(2560,2560), fontsize=40)
-    ax1 = Axis(f[1,1], title = titles[1], yautolimitmargin = (0, 0),)
-    ax2 = Axis(f[1,2], title = titles[2], yautolimitmargin = (0, 0),)
-    ax3 = Axis(f[2,1], title = titles[3], yautolimitmargin = (0, 0),)
-    ax4 = Axis(f[2,2], title = titles[4], yautolimitmargin = (0, 0),)
+    ax1 = Axis(f[1,1], title = titles[1], yautolimitmargin = (0, 0), xlabel="x", ylabel="y")
+    ax2 = Axis(f[1,2], title = titles[2], yautolimitmargin = (0, 0), xlabel="x", ylabel="y")
+    ax3 = Axis(f[2,1], title = titles[3], yautolimitmargin = (0, 0), xlabel="x", ylabel="y")
+    ax4 = Axis(f[2,2], title = titles[4], yautolimitmargin = (0, 0), xlabel="x", ylabel="y")
 
-
+    symbols = [:xcross, :circle, :utriangle, :star5, :rect, :diamond, :hexagon, :cross, :star4] 
 
     for (j,ax) in enumerate([ax1,ax2,ax3,ax4])
 
@@ -297,7 +297,7 @@ function compare2DCartesianWatersheds(basins,titles,filename;lvl = 75, msizes = 
         for (i,minimum) in enumerate(basins[j].minima)
             tmin = filter(x -> basins[j].gridpoints[x][2] == minimum, collect(keys(basins[j].gridpoints)))
             scatter!(ax,[t.translation.x for t in tmin], [t.translation.y for t in tmin],markersize = msizes[j])
-            scatter!(ax,minimum, markersize = 15, marker=:xcross, label = @sprintf "(%.3f, %.3f)" minimum.translation.x minimum.translation.y)
+            scatter!(ax,minimum, markersize = 16, marker=symbols[i], color=:black,  label = @sprintf "(%.3f, %.3f)" minimum.translation.x minimum.translation.y)
         end
 
         p2 = contour!(ax,vecs,colormap = :lipari,levels = lvl, )
@@ -305,6 +305,66 @@ function compare2DCartesianWatersheds(basins,titles,filename;lvl = 75, msizes = 
         axislegend(ax,"Minima")
 
     end
+
+    save(string("plots/",filename),f)
+end
+
+function plotMEPs2D(basin,title,mepTitle,filename;lvl = 75, basinSmall = basin)    
+    f = Figure(size=(2560,1440), fontsize=40)
+    ax = Axis(f[1,1], title = title, yautolimitmargin = (0, 0), xlabel="x", ylabel="y")
+    ax2 = Axis(f[1,2], title = mepTitle,xlabel = L"Q" ,ylabel=L"V", xautolimitmargin = (0.05, 0.05))
+
+    symbols = [:xcross, :circle, :utriangle, :star5, :rect, :diamond, :hexagon, :cross, :star4] 
+
+    vecs = collect(keys(basin.gridpoints))
+
+    p1 = contourf!(ax,vecs,colormap = :lipari,levels =lvl, )
+    p2 = contour!(ax,vecs,colormap = :lipari,levels = lvl, linewidth = 0.001, colorrange = extrema(lvl))
+
+
+
+    symbols = ['A','B','C']
+
+    for (i,minimum) in enumerate(basin.minima)
+        scatter!(ax,minimum, markersize = 40, marker=symbols[i], color=:gray,  label = @sprintf ": V(%.3f, %.3f) = %.3f" minimum.translation.x minimum.translation.y minimum.energy)
+    end
+
+    axislegend(ax,"Minima")
+
+    Colorbar(f2[1,0],p1)
+    paths = []
+
+    transitions = findMinimumEnergyPaths.(Ref(basin),basin.minima)
+
+    for t in transitions
+        for (i,p) in enumerate(t)
+            path = reverse(tracePath(basin,p[1]))
+            append!(path, tracePath(basin,p[2]))
+            scatter!(ax,path,markersize = 4,color=Makie.wong_colors()[3+i])
+            push!(paths,path)
+        end
+    end
+
+    ABpath = reverse(paths[3])
+    BCpath = paths[2]
+    B_ind = length(ABpath)+2
+    C_ind = length(ABpath)+length(BCpath)+3
+
+    ax2.xticks = ([1,B_ind,C_ind],["A","B","C"])
+
+    ABCpath = vcat(basin.minima[1],ABpath,basin.minima[2],BCpath,basin.minima[3])
+
+    scatter!(ax2,2:1:(B_ind-1),[p.energy for p in ABpath],color=Makie.wong_colors()[5])
+    scatter!(ax2,(B_ind+1):1:(C_ind-1),[p.energy for p in BCpath],color=Makie.wong_colors()[4])
+    scatter!(ax2,[1,B_ind,C_ind],[basin.minima[1].energy,basin.minima[2].energy,basin.minima[3].energy],color=:black)
+
+    tsAB = 1 + argmax([p.energy for p in ABpath])
+    scatter!([tsAB],[ABCpath[tsAB].energy], color=Makie.wong_colors()[5],marker=:xcross,markersize=20,label=latexstring(L"V(TS_{A \rightarrow B}) = ",round(ABCpath[tsAB].energy,sigdigits = 5)))
+
+    tsBC = B_ind + argmax([p.energy for p in BCpath])
+    scatter!([tsBC],[ABCpath[tsBC].energy], color=Makie.wong_colors()[4],marker=:star4,markersize=20,label=latexstring(L"V(TS_{B \rightarrow C}) = ",round(ABCpath[tsBC].energy,sigdigits = 5)))
+
+    axislegend(ax2)
 
     save(string("plots/",filename),f)
 end
