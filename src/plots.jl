@@ -309,6 +309,37 @@ function compare2DCartesianWatersheds(basins,titles,filename;lvl = 75, msizes = 
     save(string("plots/",filename),f)
 end
 
+function compare2DCartesianCoreSets(basins,titles,filename;lvl = 75, epsilons = fill(1,4), msize = 8)
+    CairoMakie.activate!()
+    @assert length(basins) == length(titles) == 4
+    
+    f = Figure(size=(2560,2560), fontsize=40)
+    ax1 = Axis(f[1,1], title = titles[1], yautolimitmargin = (0, 0), xlabel="x", ylabel="y")
+    ax2 = Axis(f[1,2], title = titles[2], yautolimitmargin = (0, 0), xlabel="x", ylabel="y")
+    ax3 = Axis(f[2,1], title = titles[3], yautolimitmargin = (0, 0), xlabel="x", ylabel="y")
+    ax4 = Axis(f[2,2], title = titles[4], yautolimitmargin = (0, 0), xlabel="x", ylabel="y")
+
+    symbols = [:xcross, :circle, :utriangle, :star5, :rect, :diamond, :hexagon, :cross, :star4] 
+
+    for (j,ax) in enumerate([ax1,ax2,ax3,ax4])
+
+        vecs = collect(keys(basins[j].gridpoints))
+
+        for (i,minimum) in enumerate(basins[j].minima)
+            tmin = filter(x -> basins[j].gridpoints[x][2] == minimum && x.energy - minimum.energy < epsilons[j], collect(keys(basins[j].gridpoints)))
+            scatter!(ax,[t.translation.x for t in tmin], [t.translation.y for t in tmin],markersize = msize)
+            scatter!(ax,minimum, markersize = 16, marker=symbols[i], color=:black,  label = @sprintf "(%.3f, %.3f)" minimum.translation.x minimum.translation.y)
+        end
+
+        p2 = contour!(ax,vecs,colormap = :lipari,levels = lvl, )
+
+        axislegend(ax,"Minima")
+
+    end
+
+    save(string("plots/",filename),f)
+end
+
 function plotMEPs2D(basin,title,mepTitle,filename;lvl = 75, basinSmall = basin)    
     f = Figure(size=(2560,1440), fontsize=40)
     ax = Axis(f[1,1], title = title, yautolimitmargin = (0, 0), xlabel="x", ylabel="y")
