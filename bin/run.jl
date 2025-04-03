@@ -50,6 +50,8 @@ plot2DCartesianWatersheds(cartesian100_mbpotpot_basin,"Basins of attraction", "M
 
 compare2DCartesianWatersheds([cartesian100_mbpotpot_basin,rotated_cartesian100_mbpotpot_basin,cartesian500_mbpotpot_basin,rotated_cartesian500_mbpotpot_basin],["100x100", "100x100, rotated by 33.75°","500x500", "500x500, rotated by 33.75°"],"compareWatershedsMB.png",lvl=range(-150,75,50),msizes=[8,8,4,4])
 
+compare2DCartesianCoreSets(fill(cartesian100_mbpotpot_basin,4),[L"\epsilon = 2",L"\epsilon = 4",L"\epsilon = 8",L"\epsilon = 16"],"compareCoreSetsMB.pdf",lvl=range(-150,75,50),msize=10,epsilons = [2,4,8,16])
+
 plotMEPs2D(cartesian1000_mbpotpot_basin,"MEPs on Müller-Brown Potential", "Energy along the MEPs","mbMEPS.pdf",lvl=range(-150,75,50))
 
 ################
