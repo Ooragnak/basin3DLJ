@@ -205,11 +205,24 @@ function plotBasinsIsosurface(basin;interpolate=nothing,ArrayType=nothing,energy
     return f
 end
 
-function plot2DPolarwatersheds(basin,basinTitle,potTitle,filename,zlabel)
+function plot2DPolarwatersheds(basin,coreDelta,basinTitle,potTitle,setTitle,filename,zlabel)
     CairoMakie.activate!()
-    f = Figure(size=(2560,1440), fontsize=40)
-    ax = PolarAxis(f[1,1], title = potTitle)
-    ax2 = PolarAxis(f[1,2], title = basinTitle)
+    f = Figure(size=(2560,2560), fontsize=40)
+
+    gridTop = f[1,1]
+    gridBot = f[2,1]
+    lgridTop = gridTop[1,1]
+    rgridTop = gridTop[1,2]
+    
+    ax = PolarAxis(lgridTop[1,1], title = potTitle)
+
+
+    ax2 = PolarAxis(gridBot[1,1], title = basinTitle)
+    ax3 = PolarAxis(gridBot[1,2], title = setTitle)
+    rlims!(ax3,0,maximum([k.translation.r for k in keys(basin.gridpoints)]))
+
+    l1 = []
+    l2 = []
 
     p1 = contourf!(ax,basin.grid.points,colormap = :lipari,levels=75)
 
@@ -217,12 +230,81 @@ function plot2DPolarwatersheds(basin,basinTitle,potTitle,filename,zlabel)
 
     for minimum in basin.minima
         tmin = filter(x -> basin.gridpoints[x][2] == minimum, collect(keys(basin.gridpoints)))
+        tmincore = filter(x -> basin.gridpoints[x][2] == minimum && x.energy - minimum.energy < coreDelta, collect(keys(basin.gridpoints)))
+
         scatter!(ax2,[t.translation.θ for t in tmin], [t.translation.r for t in tmin],markersize = 8)
+        scatter!(ax3,[t.translation.θ for t in tmincore], [t.translation.r for t in tmincore],markersize = 8)
+
+        minleg = scatter!(ax,minimum, markersize = 18, marker=:xcross)
+        push!(l1,minleg)
+        push!(l2,@sprintf "(r = %.3f, θ = %.3f)" minimum.translation.r minimum.translation.θ)
     end
+
+    l = Legend(rgridTop[1,2:4], l1, l2, "Local Minima")
+
 
     p2 = scatter!(ax2,[t.translation.θ for t in basin.minima], [t.translation.r for t in basin.minima], color = :red)
 
-    Colorbar(f[1,0],p1,label=zlabel)
+
+    Colorbar(rgridTop[1,1],p1,label=zlabel)
+
+    save(string("plots/",filename),f)
+end
+
+function plot2DCartesianWatersheds(basin,basinTitle,potTitle,filename,zlabel;lvl = 75, msize = 4)
+
+    f = Figure(size=(2560,1440), fontsize=40)
+    ax = Axis(f[1,1], title = potTitle, yautolimitmargin = (0, 0),)
+    ax2 = Axis(f[1,2], title = basinTitle, yautolimitmargin = (0, 0),)
+
+    vecs = collect(keys(basin.gridpoints))
+
+    p1 = contourf!(ax,vecs,colormap = :lipari,levels = lvl, )
+
+
+    for (i,minimum) in enumerate(basin.minima)
+        tmin = filter(x -> basin.gridpoints[x][2] == minimum, collect(keys(basin.gridpoints)))
+        scatter!(ax2,[t.translation.x for t in tmin], [t.translation.y for t in tmin],markersize = msize)
+        scatter!(ax,minimum, markersize = 15, marker=:xcross, label = @sprintf "(%.3f, %.3f)" minimum.translation.x minimum.translation.y)
+    end
+
+    p2 = contour!(ax2,vecs,colormap = :lipari,levels = lvl, )
+
+    axislegend(ax,"Minima")
+
+
+    Colorbar(f[1,0],p1, label = zlabel)
+
+    save(string("plots/",filename),f)
+end
+
+function compare2DCartesianWatersheds(basins,titles,filename;lvl = 75, msizes = fill(4,4))
+    @assert length(basins) == length(titles) == 4
+    
+    f = Figure(size=(2560,2560), fontsize=40)
+    ax1 = Axis(f[1,1], title = titles[1], yautolimitmargin = (0, 0),)
+    ax2 = Axis(f[1,2], title = titles[2], yautolimitmargin = (0, 0),)
+    ax3 = Axis(f[2,1], title = titles[3], yautolimitmargin = (0, 0),)
+    ax4 = Axis(f[2,2], title = titles[4], yautolimitmargin = (0, 0),)
+
+
+
+    for (j,ax) in enumerate([ax1,ax2,ax3,ax4])
+
+        vecs = collect(keys(basins[j].gridpoints))
+
+
+        for (i,minimum) in enumerate(basins[j].minima)
+            tmin = filter(x -> basins[j].gridpoints[x][2] == minimum, collect(keys(basins[j].gridpoints)))
+            scatter!(ax,[t.translation.x for t in tmin], [t.translation.y for t in tmin],markersize = msizes[j])
+            scatter!(ax,minimum, markersize = 15, marker=:xcross, label = @sprintf "(%.3f, %.3f)" minimum.translation.x minimum.translation.y)
+        end
+
+        p2 = contour!(ax,vecs,colormap = :lipari,levels = lvl, )
+
+        axislegend(ax,"Minima")
+
+    end
 
     save(string("plots/",filename),f)
 end
