@@ -3,6 +3,10 @@ include("../src/theme.jl")
 using KernelAbstractions
 using AMDGPU
 using CUDA
+
+import GeometryBasics
+import GeometryBasics: Tessellation, faces, coordinates, FaceView, Sphere, face_normals
+
 ################################################################
 
 # Array based conversions
@@ -398,4 +402,55 @@ function plotMEPs2D(basin,title,mepTitle,filename;lvl = 75, basinSmall = basin)
     axislegend(ax2)
 
     save(string("plots/",filename),f)
+end
+
+function plot3DPotSlice(pot,filename,limits,projectionRadius)
+    f = Figure(size=(2560,2560), fontsize=40)
+    ax1 = Axis3(f[1,1], title = string("Projection on sphere (r = ",round(projectionRadius,sigdigits=3),")"), yautolimitmargin = (0, 0), xlabel="x", ylabel="y")
+    ax2 = Axis(f[1,2], title = "Projection at z = 0", yautolimitmargin = (0, 0), xlabel="x", ylabel="y")
+    ax3 = Axis(f[2,1], title = "Projection at y = 0", yautolimitmargin = (0, 0), xlabel="x", ylabel="z")
+    ax4 = Axis(f[2,2], title = "Projection on x = y", yautolimitmargin = (0, 0), xlabel="x = y", ylabel="z")
+
+    s = Tessellation(Sphere(Point3f(0), projectionRadius), 500)
+
+    ps = coordinates(s)
+    fs = faces(s)
+
+    FT = eltype(fs)
+    N = length(fs)
+    colors = [pot(p...) for p in ps]
+
+    cs = FaceView(colors, [FT(i) for i in 1:N])
+
+    ns = face_normals(ps, fs)
+
+    m = GeometryBasics.mesh(ps, fs, normal = ns, color = cs)
+
+    p1 = mesh!(ax1,m,colormap = :lipari)
+
+    xs = range(limits...,1000)
+    ys = range(limits...,1000)
+    zs = range(limits...,1000)
+
+    xy = [pot(x,y,0) for x in xs, y in ys]
+    xz = [pot(x,0,z) for x in xs, z in zs]
+    xeqy = [pot(x,x,z) for z in zs, x in xs]
+
+    p2 = heatmap!(ax2,xs,ys,xy, colormap = :lipari)
+    p3 = heatmap!(ax3,xs,zs,xz, colormap = :lipari)
+    p4 = heatmap!(ax4,xs,zs,xeqy, colormap = :lipari)
+
+    Colorbar(f[1,0],p1)
+    Colorbar(f[1,3],p2)
+    Colorbar(f[2,0],p3)
+    Colorbar(f[2,3],p4)
+
+
+    for ax in [ax1,ax2,ax3,ax4]
+        xlims!(ax,limits)
+        ylims!(ax,limits)
+    end
+    zlims!(ax1,limits)
+
+    save(string("plots/",filename),f,size=(2560,2560),backend=GLMakie)
 end
