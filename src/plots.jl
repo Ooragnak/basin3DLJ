@@ -462,3 +462,61 @@ function plot3DPotSlice(pot,filename,limits,projectionRadius;detailed=nothing)
     save(string("plots/",filename),f,size=(2560,2560),backend=GLMakie)
 end
 
+function basinPack(basin;interpolate=nothing,ArrayType=nothing,interpolationResolution = 100)
+    grid = basin.grid
+    @assert grid.dim == 3 "Grid must be 3-dimensional"
+    @assert !isnothing(interpolate) || grid.isCartesian "Missing required interpolation arguments for non-Cartesian grid."
+    @assert isnothing(interpolate) || !isnothing(ArrayType) "Missing required interpolation arguments - Provide \"ArrayType\" for interpolation."
+
+    if !isnothing(interpolate)
+        xlimits = extrema(interpolate[1])
+        ylimits = extrema(interpolate[2])
+        zlimits = extrema(interpolate[3])
+        xs = range(xlimits...,interpolationResolution)
+        ys = range(ylimits...,interpolationResolution)
+        zs = range(zlimits...,interpolationResolution)
+
+        points = Array(interpolateSlice(grid,xs,ys,zs,ArrayType=ArrayType,closest=true,getPoints=true))
+    else
+        xs = unique(p.translation.x for p in grid.points)
+        ys = unique(p.translation.y for p in grid.points)
+        zs = unique(p.translation.z for p in grid.points)
+        points = reshape([p for p in grid.points],(length(xs),length(ys),length(zs)))
+    end
+
+    return basin, points, xs, ys, zs
+end
+
+function compareBasins(packs,titles,isoval,filename; voxels=false, isorange=1)
+    f = Figure(size=(2560,2560), fontsize=40)
+    ax1 = Axis3(f[1,1], title = titles[1], xlabel="x", ylabel="y", zlabel="z")
+    ax2 = Axis3(f[1,2], title = titles[2], xlabel="x", ylabel="y", zlabel="z")
+    ax3 = Axis3(f[2,1], title = titles[3], xlabel="x", ylabel="z", zlabel="z")
+    ax4 = Axis3(f[2,2], title = titles[4], xlabel="y", ylabel="z", zlabel="z")
+    axes = [ax1,ax2,ax3,ax4]
+
+    for (j,ax) in enumerate(axes)
+        basin = packs[j][1]
+        points = packs[j][2]
+        xs = packs[j][3]
+        ys = packs[j][4]
+        zs = packs[j][5]
+
+        xlimits = extrema(xs)
+        ylimits = extrema(ys)
+        zlimits = extrema(zs)
+
+        for (i,m) in enumerate(basin.minima)
+            if voxels
+                basinPoints = [basin.gridpoints[p][2] == m ? p.energy : NaN for p in points]
+                isOutside = @lift x -> !(x <= $isoval)
+                voxels!(ax,xlimits,ylimits,zlimits,basinPoints, colormap = fill(Makie.wong_colors()[mod1(i,7)],100),is_air = isOutside,colorrange=(-1,1))
+            else 
+                basinPoints = [basin.gridpoints[p][2] == m ? p.energy : NaN for p in points]
+                volume!(ax,xlimits,ylimits,zlimits,basinPoints , algorithm = :iso, isovalue = isoval, isorange = isorange ,colormap = fill(Makie.wong_colors()[mod1(i,7)],100) , interpolate = true)
+            end
+        end
+    end
+
+    save(string("plots/",filename),f,size=(2560,2560),backend=GLMakie)
+end

@@ -69,3 +69,19 @@ polar100_ringpot_grid = makePolarGrid(range(0.1,5,50),100,ringpot,"Ring Potentia
 polar100_ringpot_basin = gradDescent(polar100_ringpot_grid)
 
 plot2DPolarwatersheds(polar100_ringpot_basin,0.5,"Basins of attraction", "Polar model potential", "Core-sets (ϵ = 0.5)", "polarRingpot100.pdf",L"V(r,\theta)")
+
+################
+# 3D Modified Ring Potential
+################
+
+plot3DPotSlice(ringpot3D,"ringpotProjection.png",(-4,4),3.0,detailed=((-0.2,0.2),(2.9,3.1)))
+plot3DPotSlice(ringpot3DAlt,"ringpotAltProjection.png",(-4,4),3.0)
+
+molgri150x50_ringpot3D_grid = parseMolgriGrid("data/noRotGrid/",ringpot3D,"Molgri-imported grid")
+molgri150x50_ringpot3D_basin = gradDescent(molgri150x50_ringpot3D_grid)
+molgri150x50_ringpot3D_packed = basinPack(molgri150x50_ringpot3D_basin,interpolate=[(-5,5),(-5,5),(-5,5)],ArrayType=ARRAYTYPE,interpolationResolution=250)
+
+packs = [molgri150x50_ringpot3D_packed,molgri150x50_ringpot3D_packed,molgri150x50_ringpot3D_packed,molgri150x50_ringpot3D_packed]
+titles = ["Molgri 7500", "Molgri 7500", "Molgri 7500", "Molgri 7500"]
+
+compareBasins(packs, titles, -2, "compareRingpot3D.png")
