@@ -19,6 +19,10 @@ function ringpot3D(x,y,z)
     return ringpot(r,θ) * (sin(ϕ)^2 + 1)
 end
 
+function ringpot3DAlt(x,y,z) 
+    r, θ, ϕ = toSpherical(x,y,z)
+    return ringpot(r,ϕ) * (sin(2θ)^2 + sin(θ)^2 * θ)
+end
 
 function rotated2DPot(pot,x,y,rotation)
     r, θ = toPolar(x,y)
