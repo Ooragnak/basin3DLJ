@@ -1,8 +1,10 @@
+using Optim: minimizer
 include("../src/theme.jl")
 
 using KernelAbstractions
 using AMDGPU
 using CUDA
+using Optim
 
 import GeometryBasics
 import GeometryBasics: Tessellation, faces, coordinates, FaceView, Sphere, face_normals
@@ -404,29 +406,21 @@ function plotMEPs2D(basin,title,mepTitle,filename;lvl = 75, basinSmall = basin)
     save(string("plots/",filename),f)
 end
 
-function plot3DPotSlice(pot,filename,limits,projectionRadius)
+function plot3DPotSlice(pot,filename,limits,projectionRadius;detailed=nothing)
     f = Figure(size=(2560,2560), fontsize=40)
     ax1 = Axis3(f[1,1], title = string("Projection on sphere (r = ",round(projectionRadius,sigdigits=3),")"), yautolimitmargin = (0, 0), xlabel="x", ylabel="y")
-    ax2 = Axis(f[1,2], title = "Projection at z = 0", yautolimitmargin = (0, 0), xlabel="x", ylabel="y")
-    ax3 = Axis(f[2,1], title = "Projection at y = 0", yautolimitmargin = (0, 0), xlabel="x", ylabel="z")
-    ax4 = Axis(f[2,2], title = "Projection on x = y", yautolimitmargin = (0, 0), xlabel="x = y", ylabel="z")
+    ax2 = Axis(f[1,2], title = "Slice at z = 0", yautolimitmargin = (0, 0), xlabel="x", ylabel="y")
+    ax3 = Axis(f[2,1], title = "Slice at y = 0", yautolimitmargin = (0, 0), xlabel="x", ylabel="z")
+    ax4 = Axis(f[2,2], title = "Slice at x = 0", yautolimitmargin = (0, 0), xlabel="y", ylabel="z")
 
-    s = Tessellation(Sphere(Point3f(0), projectionRadius), 500)
-
-    ps = coordinates(s)
-    fs = faces(s)
-
-    FT = eltype(fs)
-    N = length(fs)
-    colors = [pot(p...) for p in ps]
-
-    cs = FaceView(colors, [FT(i) for i in 1:N])
-
-    ns = face_normals(ps, fs)
-
-    m = GeometryBasics.mesh(ps, fs, normal = ns, color = cs)
-
-    p1 = mesh!(ax1,m,colormap = :lipari)
+    n = 500
+    θ = [0;(0.5:n-0.5)/n;1]
+    φ = [(0:2n-2)*2/(2n-1);2]
+    x = [cospi(φ)*sinpi(θ) for θ in θ, φ in φ] .* projectionRadius
+    y = [sinpi(φ)*sinpi(θ) for θ in θ, φ in φ] .* projectionRadius
+    z = [cospi(θ) for θ in θ, φ in φ] .* projectionRadius
+    colors = pot.(x,y,z)
+    p1 = surface!(ax1,x,y,z,color = colors, colormap = :lipari)
 
     xs = range(limits...,1000)
     ys = range(limits...,1000)
@@ -434,11 +428,23 @@ function plot3DPotSlice(pot,filename,limits,projectionRadius)
 
     xy = [pot(x,y,0) for x in xs, y in ys]
     xz = [pot(x,0,z) for x in xs, z in zs]
-    xeqy = [pot(x,x,z) for z in zs, x in xs]
+    yz = [pot(0,y,z) for y in ys, z in zs]
 
     p2 = heatmap!(ax2,xs,ys,xy, colormap = :lipari)
     p3 = heatmap!(ax3,xs,zs,xz, colormap = :lipari)
-    p4 = heatmap!(ax4,xs,zs,xeqy, colormap = :lipari)
+
+    if isnothing(detailed)
+        p4 = heatmap!(ax4,ys,zs,yz, colormap = :lipari)
+        xlims!(ax4,limits)
+        ylims!(ax4,limits)
+    else
+        ysalt = range(detailed[1]...,1000)
+        zsalt = range(detailed[2]...,1000)
+        yz = [pot(0,y,z) for y in ysalt, z in zsalt]
+        p4 = heatmap!(ax4,ysalt,zsalt,yz, colormap = :lipari)
+        xlims!(ax4,detailed[1])
+        ylims!(ax4,detailed[2])
+    end
 
     Colorbar(f[1,0],p1)
     Colorbar(f[1,3],p2)
@@ -446,11 +452,13 @@ function plot3DPotSlice(pot,filename,limits,projectionRadius)
     Colorbar(f[2,3],p4)
 
 
-    for ax in [ax1,ax2,ax3,ax4]
+    for ax in [ax1,ax2,ax3]
         xlims!(ax,limits)
         ylims!(ax,limits)
     end
+
     zlims!(ax1,limits)
 
     save(string("plots/",filename),f,size=(2560,2560),backend=GLMakie)
 end
+
