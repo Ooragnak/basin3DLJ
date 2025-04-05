@@ -174,9 +174,13 @@ end
 
 #parsedGridAlt =  parseMolgriGrid("tmp/noRotGridAlt/",ringpot3D,"Molgri-imported grid")
 parsedGrid =  parseMolgriGrid("data/noRotGrid/",ringpot3D,"Molgri-imported grid")
+parsedGrid_2 =  parseMolgriGrid("data/noRotGrid/",ringpot3DAlt,"Molgri-imported grid")
+
 #parsedGridFine =  parseMolgriGrid("tmp/norotgridfine/",ringpot3D,"Molgri-imported grid")
 
 parsedBasin = gradDescent(parsedGrid)
+parsedBasin_2 = gradDescent(parsedGrid_2)
+
 
 display(f3d)
 
@@ -261,6 +265,8 @@ f_a = plotBasinsIsosurface(newbasin,energyrange=(-12,12))
 f_b = plotBasinsIsosurface(parsedBasin,interpolate=[(-5,5),(-5,5),(-5,5)],ArrayType=ARRAYTYPE,interpolationResolution=250,energyrange=(-12,12))
 f_c = plotBasinsIsosurface(parsedBasin,interpolate=[(-5,5),(-5,5),(-5,5)],ArrayType=ARRAYTYPE,interpolationResolution=80,voxels=true,energyrange=(-12,12))
 f_d = plotBasinsIsosurface(newbasin,voxels=true,energyrange=(-12,12))
+
+f_g = plotBasinsIsosurface(parsedBasin_2,interpolate=[(-5,5),(-5,5),(-5,5)],ArrayType=ARRAYTYPE,interpolationResolution=80,energyrange=(-12,12))
 
 
 # Example benchmarks showing the impact of GPU computing for single and double precision floating point
@@ -379,3 +385,17 @@ for x in xs, y in ys
         color = txtcolor, align = (:center, :center),space=:data)
 end
 
+f8 = Figure(size=(2560,2560), fontsize=40)
+ax2 = Axis3(f8[1,2], title = string("Projection on sphere (r = ",round(3.0,sigdigits=3),")"), yautolimitmargin = (0, 0), xlabel="x", ylabel="y")
+ps = [normalize(rand(3) .- 0.5) .* 6 for i in 1:100000]
+cs = [ringpot3D(p...) for p in ps]
+meshscatter!(ax2,[p[1] for p in ps], [p[2] for p in ps], [p[3] for p in ps],color = cs,markersize=0.01)
+
+n = 100
+θ = [0;(0.5:n-0.5)/n;1]
+φ = [(0:2n-2)*2/(2n-1);2]
+x = [cospi(φ)*sinpi(θ) for θ in θ, φ in φ] .* 3
+y = [sinpi(φ)*sinpi(θ) for θ in θ, φ in φ] .* 3
+z = [cospi(θ) for θ in θ, φ in φ] .* 3
+colors = ringpot3D.(x,y,z)
+surface(x,y,z,color = colors)
