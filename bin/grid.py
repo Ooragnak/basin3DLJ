@@ -29,6 +29,8 @@ makeGrid("data/noRotGrid/","zero","ico_150",[1,5,50])
 makeGrid("data/noRotGridFine/","zero","ico_500",[0.1,5,100])
 makeGrid("data/noRotGridAlt/","zero","ico_160",[0.01,5,20])
 makeGrid("data/noRotGridFine2/","zero","ico_1000",[0.5,4,50])
+makeGrid("data/noRotGridSparse/","zero","ico_80",[1,5,20])
+
 
 
 
