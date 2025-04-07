@@ -498,12 +498,12 @@ function basinPack(basin;interpolate=nothing,ArrayType=nothing,interpolationReso
     return basin, points, xs, ys, zs
 end
 
-function compareBasins(packs,titles,isovals,filename; voxels=false, isorange=1, colors = Makie.wong_colors(), kwargs...)
-    f = Figure(size=(1280,1280), fontsize=20)
-    ax1 = Axis3(f[1,1], title = titles[1], xlabel="x", ylabel="y", zlabel="z", kwargs...)
-    ax2 = Axis3(f[1,2], title = titles[2], xlabel="x", ylabel="y", zlabel="z", kwargs...)
-    ax3 = Axis3(f[2,1], title = titles[3], xlabel="x", ylabel="z", zlabel="z", kwargs...)
-    ax4 = Axis3(f[2,2], title = titles[4], xlabel="y", ylabel="z", zlabel="z", kwargs...)
+function compareBasins(packs,titles,isovals,filename; voxels=false, isorange=1, colors = Makie.wong_colors(), reversed=false, kwargs...)
+    f = Figure(size=(1280,1000), fontsize=20)
+    ax1 = Axis3(f[1,1], title = titles[1], xlabel="x", ylabel="y", zlabel="z"; kwargs...)
+    ax2 = Axis3(f[1,2], title = titles[2], xlabel="x", ylabel="y", zlabel="z"; kwargs...)
+    ax3 = Axis3(f[2,1], title = titles[3], xlabel="x", ylabel="y", zlabel="z"; kwargs...)
+    ax4 = Axis3(f[2,2], title = titles[4], xlabel="x", ylabel="y", zlabel="z"; kwargs...)
     axes = [ax1,ax2,ax3,ax4]
 
     for (j,ax) in enumerate(axes)
@@ -517,14 +517,17 @@ function compareBasins(packs,titles,isovals,filename; voxels=false, isorange=1, 
         ylimits = extrema(ys)
         zlimits = extrema(zs)
 
-        for (i,m) in enumerate(sort(basin.minima, by= x-> x.energy, rev = true))
+        for (i,m) in enumerate(sort(basin.minima, by= x-> x.energy))
             if voxels
-                basinPoints = [basin.gridpoints[p][2] == m && p.energy <= isoval + isorange ? p.energy : NaN for p in points]
+                basinPoints = [basin.gridpoints[p][2] == m && p.energy <= isovals[j] + isorange ? p.energy : NaN for p in points]
                 voxels!(ax,xlimits,ylimits,zlimits,basinPoints, colormap = fill(colors[mod1(i,length(colors))],100),colorrange=(-1,1))
             else 
                 basinPoints = [basin.gridpoints[p][2] == m ? p.energy : NaN for p in points]
                 volume!(ax,xlimits,ylimits,zlimits,basinPoints , algorithm = :iso, isovalue = isovals[j], isorange = isorange ,colormap = fill(colors[mod1(i,length(colors))],100) , interpolate = true)
             end
+        end
+        if reversed
+            ax.xreversed=true
         end
     end
     resize_to_layout!(f)
@@ -532,11 +535,11 @@ function compareBasins(packs,titles,isovals,filename; voxels=false, isorange=1, 
 end
 
 function compareCoreSets(packs,titles,epsilons,filename; voxels=false, colors = Makie.wong_colors(), kwargs...)
-    f = Figure(size=(1280,1280), fontsize=20)
-    ax1 = Axis3(f[1,1], title = titles[1], xlabel="x", ylabel="y", zlabel="z", kwargs...)
-    ax4 = Axis3(f[2,2], title = titles[4], xlabel="y", ylabel="z", zlabel="z", kwargs...)
-    ax2 = Axis3(f[1,2], title = titles[2], xlabel="x", ylabel="y", zlabel="z", kwargs...)
-    ax3 = Axis3(f[2,1], title = titles[3], xlabel="x", ylabel="z", zlabel="z", kwargs...)
+    f = Figure(size=(1280,1000), fontsize=20)
+    ax1 = Axis3(f[1,1], title = titles[1], xlabel="x", ylabel="y", zlabel="z"; kwargs...)
+    ax4 = Axis3(f[2,2], title = titles[4], xlabel="y", ylabel="z", zlabel="z"; kwargs...)
+    ax2 = Axis3(f[1,2], title = titles[2], xlabel="x", ylabel="y", zlabel="z"; kwargs...)
+    ax3 = Axis3(f[2,1], title = titles[3], xlabel="x", ylabel="z", zlabel="z"; kwargs...)
 
     axes = [ax1,ax2,ax3,ax4]
 
@@ -551,7 +554,7 @@ function compareCoreSets(packs,titles,epsilons,filename; voxels=false, colors = 
         ylimits = extrema(ys)
         zlimits = extrema(zs)
 
-        for (i,m) in enumerate(sort(basin.minima, by= x-> x.energy, rev = true))
+        for (i,m) in enumerate(sort(basin.minima, by= x-> x.energy))
             isoval = m.energy
             isorange = epsilons[j]
             if voxels
