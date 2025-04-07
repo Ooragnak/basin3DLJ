@@ -1,4 +1,3 @@
-using GLMakie: px_per_unit
 using Optim: minimizer
 include("../src/theme.jl")
 
@@ -366,7 +365,7 @@ function plotMEPs2D(basin,title,mepTitle,filename;lvl = 75, basinSmall = basin)
 
     axislegend(ax,"Minima")
 
-    Colorbar(f2[1,0],p1)
+    Colorbar(f[1,0],p1)
     paths = []
 
     transitions = findMinimumEnergyPaths.(Ref(basin),basin.minima)
@@ -404,9 +403,9 @@ function plotMEPs2D(basin,title,mepTitle,filename;lvl = 75, basinSmall = basin)
     save(string("plots/",filename),f,backend=CairoMakie)
 end
 
-function plot3DPotSlice(pot,filename,limits,projectionRadius;detailed=nothing)
+function plot3DPotSlice(pot,filename,limits,projectionRadius;detailed=nothing,colorrange=nothing,kwargs3D...)
     f = Figure(size=(1280,1280), fontsize=20)
-    ax1 = Axis3(f[1,1], title = string("Projection on sphere (r = ",round(projectionRadius,sigdigits=3),")"), yautolimitmargin = (0, 0), xlabel="x", ylabel="y")
+    ax1 = Axis3(f[1,1], title = string("Projection on sphere (r = ",round(projectionRadius,sigdigits=3),")"), yautolimitmargin = (0, 0), xlabel="x", ylabel="y";kwargs3D...)
     ax2 = Axis(f[1,2], title = "Slice at z = 0", yautolimitmargin = (0, 0), xlabel="x", ylabel="y")
     ax3 = Axis(f[2,1], title = "Slice at y = 0", yautolimitmargin = (0, 0), xlabel="x", ylabel="z")
     ax4 = Axis(f[2,2], title = "Slice at x = 0", yautolimitmargin = (0, 0), xlabel="y", ylabel="z")
@@ -418,7 +417,12 @@ function plot3DPotSlice(pot,filename,limits,projectionRadius;detailed=nothing)
     y = [sinpi(φ)*sinpi(θ) for θ in θ, φ in φ] .* projectionRadius
     z = [cospi(θ) for θ in θ, φ in φ] .* projectionRadius
     colors = pot.(x,y,z)
-    p1 = surface!(ax1,x,y,z,color = colors, colormap = :lipari)
+
+    if isnothing(colorrange)
+        p1 = surface!(ax1,x,y,z,color = colors, colormap = :lipari)
+    else
+        p1 = surface!(ax1,x,y,z,color = colors, colormap = :lipari, colorrange = colorrange)
+    end
 
     xs = range(limits...,1000)
     ys = range(limits...,1000)
@@ -428,11 +432,20 @@ function plot3DPotSlice(pot,filename,limits,projectionRadius;detailed=nothing)
     xz = [pot(x,0,z) for x in xs, z in zs]
     yz = [pot(0,y,z) for y in ys, z in zs]
 
-    p2 = heatmap!(ax2,xs,ys,xy, colormap = :lipari)
-    p3 = heatmap!(ax3,xs,zs,xz, colormap = :lipari)
+    if isnothing(colorrange)
+        p2 = heatmap!(ax2,xs,ys,xy, colormap = :lipari)
+        p3 = heatmap!(ax3,xs,zs,xz, colormap = :lipari)
+    else
+        p2 = heatmap!(ax2,xs,ys,xy, colormap = :lipari, colorrange = colorrange)
+        p3 = heatmap!(ax3,xs,zs,xz, colormap = :lipari, colorrange = colorrange)
+    end
 
     if isnothing(detailed)
-        p4 = heatmap!(ax4,ys,zs,yz, colormap = :lipari)
+        if isnothing(colorrange)
+            p4 = heatmap!(ax4,ys,zs,yz, colormap = :lipari)
+        else
+            p4 = heatmap!(ax4,ys,zs,yz, colormap = :lipari, colorrange = colorrange)
+        end
         xlims!(ax4,limits)
         ylims!(ax4,limits)
     else
@@ -457,7 +470,7 @@ function plot3DPotSlice(pot,filename,limits,projectionRadius;detailed=nothing)
 
     zlims!(ax1,limits)
 
-    save(string("plots/",filename),f,size=(2560,2560),backend=GLMakie,px_per_unit=2)
+    save(string("plots/",filename),f,backend=GLMakie,px_per_unit=2)
 end
 
 function basinPack(basin;interpolate=nothing,ArrayType=nothing,interpolationResolution = 100)
@@ -519,7 +532,7 @@ function compareBasins(packs,titles,isovals,filename; voxels=false, isorange=1, 
 end
 
 function compareCoreSets(packs,titles,epsilons,filename; voxels=false, colors = Makie.wong_colors(), kwargs...)
-    f = Figure(size=(2560,2560), fontsize=20)
+    f = Figure(size=(1280,1280), fontsize=20)
     ax1 = Axis3(f[1,1], title = titles[1], xlabel="x", ylabel="y", zlabel="z", kwargs...)
     ax4 = Axis3(f[2,2], title = titles[4], xlabel="y", ylabel="z", zlabel="z", kwargs...)
     ax2 = Axis3(f[1,2], title = titles[2], xlabel="x", ylabel="y", zlabel="z", kwargs...)
