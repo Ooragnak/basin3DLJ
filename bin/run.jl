@@ -74,7 +74,7 @@ plot2DPolarwatersheds(polar100_ringpot_basin,0.5,"Basins of attraction", "Polar 
 # 3D Modified Ring Potential
 ################
 
-plot3DPotSlice(ringpot3D,"ringpotProjection.png",(-4,4),3.0,detailed=((-0.2,0.2),(2.9,3.1)))
+plot3DPotSlice(ringpot3D,"ringpotProjection.png",(-4,4),3.0)
 plot3DPotSlice(ringpot3DAlt,"ringpotAltProjection.png",(-4,4),3.0)
 
 molgri150x50_ringpot3D_grid = parseMolgriGrid("data/noRotGrid/",ringpot3D,"Ringpot3D on Molgri-imported grid 150x50")
@@ -93,46 +93,123 @@ cartesian100x100x100_ringpot3D_grid  = makeCartesianGrid(range(-5.1,5,100),range
 cartesian100x100x100_ringpot3D_basin = gradDescent(cartesian100x100x100_ringpot3D_grid)
 cartesian100x100x100_ringpot3D_packed = basinPack(cartesian100x100x100_ringpot3D_basin)
 
+molgri80x20_ringpot3D_grid = parseMolgriGrid("data/noRotGridSparse/",ringpot3D,"Ringpot3D on Molgri-imported grid 80x20")
+molgri80x20_ringpot3D_basin = gradDescent(molgri80x20_ringpot3D_grid)
+molgri80x20_ringpot3D_packed = basinPack(molgri80x20_ringpot3D_basin,interpolate=[(-5,5),(-5,5),(-5,5)],ArrayType=ARRAYTYPE,interpolationResolution=250)
+
+molgri80x20_ringpot3D_diagonal_grid = getDiagonalNeighbors(parseMolgriGrid("data/noRotGridSparse/",ringpot3D,"Ringpot3D on Molgri-imported grid 80x20"),true)
+molgri80x20_ringpot3D_diagonal_basin = gradDescent(molgri80x20_ringpot3D_diagonal_grid)
+molgri80x20_ringpot3D_diagonal_packed = basinPack(molgri80x20_ringpot3D_diagonal_basin,interpolate=[(-5,5),(-5,5),(-5,5)],ArrayType=ARRAYTYPE,interpolationResolution=250)
+
+molgri150x50_ringpot3D_diagonal_grid = getDiagonalNeighbors(parseMolgriGrid("data/noRotGrid/",ringpot3D,"Ringpot3D on Molgri-imported grid 150x50"))
+molgri150x50_ringpot3D_diagonal_basin = gradDescent(molgri150x50_ringpot3D_diagonal_grid)
+molgri150x50_ringpot3D_diagonal_packed = basinPack(molgri150x50_ringpot3D_diagonal_basin,interpolate=[(-5,5),(-5,5),(-5,5)],ArrayType=ARRAYTYPE,interpolationResolution=250)
+
+molgri1000x50_ringpot3D_diagonal_grid = getDiagonalNeighbors(parseMolgriGrid("data/noRotGridFine2/",ringpot3D,"Ringpot3D on Molgri-imported grid 1000x50"))
+molgri1000x50_ringpot3D_diagonal_basin = gradDescent(molgri1000x50_ringpot3D_diagonal_grid)
+molgri1000x50_ringpot3D_diagonal_packed = basinPack(molgri1000x50_ringpot3D_diagonal_basin,interpolate=[(-5,5),(-5,5),(-5,5)],ArrayType=ARRAYTYPE,interpolationResolution=250)
+
 packs = [molgri150x50_ringpot3D_packed,molgri1000x50_ringpot3D_packed,cartesian20x20x20_ringpot3D_packed,cartesian100x100x100_ringpot3D_packed]
-titles = ["Molgri 7500", "Molgri 50000", "Cartesian 7500",  "Cartesian 1000000"]
+titles = ["Spherical 7500", "Spherical 50000", "Cartesian 8000",  "Cartesian 1000000"]
+
+packs2 = [molgri80x20_ringpot3D_packed,molgri80x20_ringpot3D_diagonal_packed,molgri150x50_ringpot3D_diagonal_packed,molgri1000x50_ringpot3D_diagonal_packed]
+titles2 = ["Spherical 1600", "Spherical 1600 (diag)", "Spherical 7500 (diag)",  "Spherical 1000000 (diag)"]
 
 compareBasins(packs, titles, fill(-2.5,4), "compareRingpot3D.png")
 compareCoreSets(packs, titles, fill(0.5,4), "compareCoreSetsRingpot3D.png")
 
+compareCoreSets(packs2, titles2, fill(0.5,4), "compareCoreSetsRingpot3D_diag.png")
 
-molgri150x50_ringpot3DAlt_grid = parseMolgriGrid("data/noRotGrid/",ringpot3DAlt,"ringpot3DAlt on Molgri-imported grid 150x50")
-molgri150x50_ringpot3DAlt_basin = gradDescent(molgri150x50_ringpot3DAlt_grid)
-molgri150x50_ringpot3DAlt_packed = basinPack(molgri150x50_ringpot3DAlt_basin,interpolate=[(-5,5),(-5,5),(-5,5)],ArrayType=ARRAYTYPE,interpolationResolution=250)
+compareBasins(packs2, titles2, fill(-2.5,4), "compareRingpot3D_diagA.png")
 
-molgri150x50_ringpot3DAlt_diagonal_grid = getDiagonalNeighbors(parseMolgriGrid("data/noRotGrid/",ringpot3DAlt,"ringpot3DAlt on Molgri-imported grid 150x50"),true)
-molgri150x50_ringpot3DAlt_diagonal_basin = gradDescent(molgri150x50_ringpot3DAlt_diagonal_grid)
-molgri150x50_ringpot3DAlt_diagonal_packed = basinPack(molgri150x50_ringpot3DAlt_diagonal_basin,interpolate=[(-5,5),(-5,5),(-5,5)],ArrayType=ARRAYTYPE,interpolationResolution=250)
 
-molgri1000x50_ringpot3DAlt_grid = parseMolgriGrid("data/noRotGridFine2/",ringpot3DAlt,"ringpot3DAlt on Molgri-imported grid 1000x50")
-molgri1000x50_ringpot3DAlt_basin = gradDescent(molgri1000x50_ringpot3DAlt_grid)
-molgri1000x50_ringpot3DAlt_packed = basinPack(molgri1000x50_ringpot3DAlt_basin,interpolate=[(-5,5),(-5,5),(-5,5)],ArrayType=ARRAYTYPE,interpolationResolution=100)
+# MODIFIED POTENTIAL - PROBABLY DEPRECATED
+#
+#molgri150x50_ringpot3DAlt_grid = parseMolgriGrid("data/noRotGrid/",ringpot3DAlt,"ringpot3DAlt on Molgri-imported grid 150x50")
+#molgri150x50_ringpot3DAlt_basin = gradDescent(molgri150x50_ringpot3DAlt_grid)
+#molgri150x50_ringpot3DAlt_packed = basinPack(molgri150x50_ringpot3DAlt_basin,interpolate=[(-5,5),(-5,5),(-5,5)],ArrayType=ARRAYTYPE,interpolationResolution=250)
+#
+#molgri150x50_ringpot3DAlt_diagonal_grid = getDiagonalNeighbors(parseMolgriGrid("data/noRotGrid/",ringpot3DAlt,"ringpot3DAlt on Molgri-imported grid 150x50"),true)
+#molgri150x50_ringpot3DAlt_diagonal_basin = gradDescent(molgri150x50_ringpot3DAlt_diagonal_grid)
+#molgri150x50_ringpot3DAlt_diagonal_packed = basinPack(molgri150x50_ringpot3DAlt_diagonal_basin,interpolate=[(-5,5),(-5,5),(-5,5)],ArrayType=ARRAYTYPE,interpolationResolution=250)
+#
+#molgri1000x50_ringpot3DAlt_grid = parseMolgriGrid("data/noRotGridFine2/",ringpot3DAlt,"ringpot3DAlt on Molgri-imported grid 1000x50")
+#molgri1000x50_ringpot3DAlt_basin = gradDescent(molgri1000x50_ringpot3DAlt_grid)
+#molgri1000x50_ringpot3DAlt_packed = basinPack(molgri1000x50_ringpot3DAlt_basin,interpolate=[(-5,5),(-5,5),(-5,5)],ArrayType=ARRAYTYPE,interpolationResolution=100)
+#
+#molgri1000x50_ringpot3DAlt_diagonal_grid = parseMolgriGrid("data/noRotGridFine2/",ringpot3DAlt,"ringpot3DAlt on Molgri-imported grid 1000x50")
+#molgri1000x50_ringpot3DAlt_diagonal_basin = gradDescent(molgri1000x50_ringpot3DAlt_diagonal_grid)
+#molgri1000x50_ringpot3DAlt_diagonal_packed = basinPack(molgri1000x50_ringpot3DAlt_diagonal_basin,interpolate=[(-5,5),(-5,5),(-5,5)],ArrayType=ARRAYTYPE,interpolationResolution=100)
+#
+#cartesian20x20x20_ringpot3DAlt_grid  = makeCartesianGrid(range(-5.01,5,20),range(-5.01,5,20),range(-5.01,5,20),ringpot3DAlt,"ringpot3DAlt on Cartesian grid 20x20x20",diagonal=true)
+#cartesian20x20x20_ringpot3DAlt_basin = gradDescent(cartesian20x20x20_ringpot3DAlt_grid)
+#cartesian20x20x20_ringpot3DAlt_packed = basinPack(cartesian20x20x20_ringpot3DAlt_basin)
+#
+#cartesian100x100x100_ringpot3DAlt_grid  = makeCartesianGrid(range(-5.1,5,100),range(-5.1,5,100),range(-5.1,5,100),ringpot3DAlt,"ringpot3DAlt on Cartesian grid 100x100x100",diagonal=true)
+#cartesian100x100x100_ringpot3DAlt_basin = gradDescent(cartesian100x100x100_ringpot3DAlt_grid)
+#cartesian100x100x100_ringpot3DAlt_packed = basinPack(cartesian100x100x100_ringpot3DAlt_basin)
+#
+#packsAlt = [molgri150x50_ringpot3DAlt_packed,molgri1000x50_ringpot3DAlt_packed,cartesian20x20x20_ringpot3DAlt_packed,cartesian100x100x100_ringpot3DAlt_packed]
+#titlesAlt = ["Molgri 7500", "Molgri 50000", "Cartesian 8000",  "Cartesian 1000000"]
+#
+#packsAlt2 = [molgri150x50_ringpot3DAlt_diagonal_packed,molgri1000x50_ringpot3DAlt_diagonal_packed,cartesian20x20x20_ringpot3DAlt_packed,cartesian100x100x100_ringpot3DAlt_packed]
+#titlesAlt2 = ["Molgri (diagonal) 7500", "Molgri (diagonal) 50000", "Cartesian 8000",  "Cartesian 1000000"]
+#
+#compareBasins(packsAlt, titlesAlt, fill(-3,4), "compareringpot3DAlt.png")
+#compareCoreSets(packsAlt, titlesAlt, fill(1.0,4), "compareCoreSetsRingpot3DAlt.png")
+#compareBasins(packsAlt2, titlesAlt2, fill(-3,4), "compareringpot3DAlt_diag.png", voxels=false)
+#compareCoreSets(packsAlt2, titlesAlt2, fill(1.0,4), "compareCoreSetsRingpot3DAlt_diag.png", voxels=true)
 
-molgri1000x50_ringpot3DAlt_diagonal_grid = parseMolgriGrid("data/noRotGridFine2/",ringpot3DAlt,"ringpot3DAlt on Molgri-imported grid 1000x50")
-molgri1000x50_ringpot3DAlt_diagonal_basin = gradDescent(molgri1000x50_ringpot3DAlt_diagonal_grid)
-molgri1000x50_ringpot3DAlt_diagonal_packed = basinPack(molgri1000x50_ringpot3DAlt_diagonal_basin,interpolate=[(-5,5),(-5,5),(-5,5)],ArrayType=ARRAYTYPE,interpolationResolution=100)
+################
+# 3D Lennard-Jones Cluster
+################
 
-cartesian20x20x20_ringpot3DAlt_grid  = makeCartesianGrid(range(-5.01,5,20),range(-5.01,5,20),range(-5.01,5,20),ringpot3DAlt,"ringpot3DAlt on Cartesian grid 20x20x20",diagonal=true)
-cartesian20x20x20_ringpot3DAlt_basin = gradDescent(cartesian20x20x20_ringpot3DAlt_grid)
-cartesian20x20x20_ringpot3DAlt_packed = basinPack(cartesian20x20x20_ringpot3DAlt_basin)
+defaultCluster = vcat(fill((1,2*2^(-1/6)),12),nothing)
+ABABcluster = generateCluster(1,defaultCluster)
 
-cartesian100x100x100_ringpot3DAlt_grid  = makeCartesianGrid(range(-5.1,5,100),range(-5.1,5,100),range(-5.1,5,100),ringpot3DAlt,"ringpot3DAlt on Cartesian grid 100x100x100",diagonal=true)
-cartesian100x100x100_ringpot3DAlt_basin = gradDescent(cartesian100x100x100_ringpot3DAlt_grid)
-cartesian100x100x100_ringpot3DAlt_packed = basinPack(cartesian100x100x100_ringpot3DAlt_basin)
+plot3DPotSlice((x,y,z) -> potential(ABABcluster,x,y,z),"LJClusterProjection.png",(-4,4),3.0,colorrange=(-6,2),azimuth=0.1π,xreversed=true)
 
-packsAlt = [molgri150x50_ringpot3DAlt_packed,molgri1000x50_ringpot3DAlt_packed,cartesian20x20x20_ringpot3DAlt_packed,cartesian100x100x100_ringpot3DAlt_packed]
-titlesAlt = ["Molgri 7500", "Molgri 50000", "Cartesian 7500",  "Cartesian 1000000"]
+#Plot LJ particle cluster
+f3d_LJ = Figure(size=(1280,1280), fontsize=40)
+ax3d = Axis3(f3d_LJ[1,1], title = "Lennard-Jones particle cluster",xreversed=true,aspect=:equal)
+c1 = Makie.wong_colors()[1]
+c2 = Makie.wong_colors()[2]
+meshscatter!(ax3d,[p.t for p in ABABcluster.particles],markersize=0.3333,color=[c1,c2,c1,c2,c1,c2,c1,c2,c2,c1,c2,c1])
+xlims!(ax3d,(3,-3))
+ylims!(ax3d,(-3,3))
+zlims!(ax3d,(-3,3))
+save(string("plots/","LJClusterParticles.png"),f3d_LJ,backend=GLMakie,px_per_unit=2)
 
-packsAlt2 = [molgri150x50_ringpot3DAlt_diagonal_packed,molgri1000x50_ringpot3DAlt_diagonal_packed,cartesian20x20x20_ringpot3DAlt_packed,cartesian100x100x100_ringpot3DAlt_packed]
-titlesAlt2 = ["Molgri (diagonal) 7500", "Molgri (diagonal) 50000", "Cartesian 7500",  "Cartesian 1000000"]
+molgri1000x50_LJCluster_diagonal_grid = getDiagonalNeighbors(parseMolgriGrid("data/noRotGridFine2/",(x,y,z) -> potential(ABABcluster,x,y,z),"Lennard-Jones Cluster on Molgri-imported grid"),true)
+molgri1000x50_LJCluster_diagonal_basin = gradDescent(molgri1000x50_LJCluster_diagonal_grid)
+molgri1000x50_LJCluster_diagonal_basin = basinPack(molgri1000x50_LJCluster_diagonal_basin,interpolate=[(-5,5),(-5,5),(-5,5)],ArrayType=ARRAYTYPE,interpolationResolution=120)
 
-compareBasins(packsAlt, titlesAlt, fill(-3,4), "compareringpot3DAlt.png")
-compareCoreSets(packsAlt, titlesAlt, fill(1.0,4), "compareCoreSetsRingpot3DAlt.png")
+molgri150x50_LJCluster_diagonal_grid = getDiagonalNeighbors(parseMolgriGrid("data/noRotGrid/",(x,y,z) -> potential(ABABcluster,x,y,z),"Lennard-Jones Cluster on Molgri-imported grid"),true)
+molgri150x50_LJCluster_diagonal_basin = gradDescent(molgri150x50_LJCluster_diagonal_grid)
+molgri150x50_LJCluster_diagonal_packed = basinPack(molgri150x50_LJCluster_diagonal_basin,interpolate=[(-5,5),(-5,5),(-5,5)],ArrayType=ARRAYTYPE,interpolationResolution=120)
 
-compareBasins(packsAlt2, titlesAlt2, fill(-3,4), "compareringpot3DAlt_diag.png", voxels=false)
-compareCoreSets(packsAlt2, titlesAlt2, fill(1.0,4), "compareCoreSetsRingpot3DAlt_diag.png", voxels=true)
+cartesian20x20x20_LJCluster_grid  = makeCartesianGrid(range(-5.01,5,20),range(-5.01,5,20),range(-5.01,5,20),(x,y,z) -> potential(ABABcluster,x,y,z),"Ringpot3D on Cartesian grid 20x20x20",diagonal=true)
+cartesian20x20x20_LJCluster_basin = gradDescent(cartesian20x20x20_LJCluster_grid)
+cartesian20x20x20_LJCluster_packed = basinPack(cartesian20x20x20_LJCluster_basin)
+
+cartesian100x100x100_LJCluster_grid  = makeCartesianGrid(range(-5.1,5,100),range(-5.1,5,100),range(-5.1,5,100),(x,y,z) -> potential(ABABcluster,x,y,z),"Ringpot3D on Cartesian grid 100x100x100",diagonal=true)
+cartesian100x100x100_LJCluster_basin = gradDescent(cartesian100x100x100_LJCluster_grid)
+cartesian100x100x100_LJCluster_packed = basinPack(cartesian100x100x100_LJCluster_basin)
+
+packsLJ = [molgri150x50_LJCluster_diagonal_packed,molgri1000x50_LJCluster_diagonal_basin,cartesian20x20x20_LJCluster_packed,cartesian100x100x100_LJCluster_packed]
+titlesLJ = ["Spherical 7500", "Spherical 50000", "Cartesian 8000",  "Cartesian 1000000"]
+
+compareCoreSets(packsLJ, titlesLJ, fill(0.5,4), "compareCoreSetsLJ.png")
+
+cLJ = vcat(lipari(20)[12],[RGBf(x, x, x) for x in rand(collect((24:200) ./ 255),40)])
+
+packsLJ2 = [molgri1000x50_LJCluster_diagonal_basin,molgri1000x50_LJCluster_diagonal_basin,molgri1000x50_LJCluster_diagonal_basin,molgri1000x50_LJCluster_diagonal_basin]
+titlesLJ2 = ["Isovalue = -3.2", "Isovalue = -2.4", "Isovalue = -1.6",  "Isovalue = -0.8"]
+
+compareBasins(packsLJ2, titlesLJ2, [-3.2, -2.4, -1.6, -0.8], "compareBasinLJ_Spherical.png",colors=cLJ,azimuth=1.15π,reversed=true,voxels=true,isorange=0.01)
+
+packsLJ3 = [cartesian100x100x100_LJCluster_packed,cartesian100x100x100_LJCluster_packed,cartesian100x100x100_LJCluster_packed,cartesian100x100x100_LJCluster_packed]
+titlesLJ3 = ["Isovalue = -3.2", "Isovalue = -2.4", "Isovalue = -1.6",  "Isovalue = -0.8"]
+
+compareBasins(packsLJ3, titlesLJ3, [-3.2, -2.4, -1.6, -0.8], "compareBasinLJ_Cartesian.png",colors=cLJ,azimuth=1.15π,reversed=true,voxels=true,isorange=0.01)
 
