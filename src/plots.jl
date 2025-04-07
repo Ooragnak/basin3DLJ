@@ -1,3 +1,4 @@
+using GLMakie: px_per_unit
 using Optim: minimizer
 include("../src/theme.jl")
 
@@ -212,7 +213,6 @@ function plotBasinsIsosurface(basin;interpolate=nothing,ArrayType=nothing,energy
 end
 
 function plot2DPolarwatersheds(basin,coreDelta,basinTitle,potTitle,setTitle,filename,zlabel)
-    CairoMakie.activate!()
     f = Figure(size=(2560,2560), fontsize=40)
 
     gridTop = f[1,1]
@@ -254,11 +254,10 @@ function plot2DPolarwatersheds(basin,coreDelta,basinTitle,potTitle,setTitle,file
 
     Colorbar(rgridTop[1,1],p1,label=zlabel)
 
-    save(string("plots/",filename),f)
+    save(string("plots/",filename),f,backend=CairoMakie)
 end
 
 function plot2DCartesianWatersheds(basin,basinTitle,potTitle,filename,zlabel;lvl = 75, msize = 4)
-
     f = Figure(size=(2560,1440), fontsize=40)
     ax = Axis(f[1,1], title = potTitle, yautolimitmargin = (0, 0), xlabel="x", ylabel="y")
     ax2 = Axis(f[1,2], title = basinTitle, yautolimitmargin = (0, 0), xlabel="x", ylabel="y")
@@ -281,7 +280,7 @@ function plot2DCartesianWatersheds(basin,basinTitle,potTitle,filename,zlabel;lvl
 
     Colorbar(f[1,0],p1, label = zlabel)
 
-    save(string("plots/",filename),f)
+    save(string("plots/",filename),f,backend=CairoMakie)
 end
 
 function compare2DCartesianWatersheds(basins,titles,filename;lvl = 75, msizes = fill(4,4))
@@ -312,11 +311,10 @@ function compare2DCartesianWatersheds(basins,titles,filename;lvl = 75, msizes = 
 
     end
 
-    save(string("plots/",filename),f)
+    save(string("plots/",filename),f,backend=CairoMakie)
 end
 
 function compare2DCartesianCoreSets(basins,titles,filename;lvl = 75, epsilons = fill(1,4), msize = 8)
-    CairoMakie.activate!()
     @assert length(basins) == length(titles) == 4
     
     f = Figure(size=(2560,2560), fontsize=40)
@@ -343,7 +341,7 @@ function compare2DCartesianCoreSets(basins,titles,filename;lvl = 75, epsilons = 
 
     end
 
-    save(string("plots/",filename),f)
+    save(string("plots/",filename),f,backend=CairoMakie)
 end
 
 function plotMEPs2D(basin,title,mepTitle,filename;lvl = 75, basinSmall = basin)    
@@ -403,11 +401,11 @@ function plotMEPs2D(basin,title,mepTitle,filename;lvl = 75, basinSmall = basin)
 
     axislegend(ax2)
 
-    save(string("plots/",filename),f)
+    save(string("plots/",filename),f,backend=CairoMakie)
 end
 
 function plot3DPotSlice(pot,filename,limits,projectionRadius;detailed=nothing)
-    f = Figure(size=(2560,2560), fontsize=40)
+    f = Figure(size=(1280,1280), fontsize=20)
     ax1 = Axis3(f[1,1], title = string("Projection on sphere (r = ",round(projectionRadius,sigdigits=3),")"), yautolimitmargin = (0, 0), xlabel="x", ylabel="y")
     ax2 = Axis(f[1,2], title = "Slice at z = 0", yautolimitmargin = (0, 0), xlabel="x", ylabel="y")
     ax3 = Axis(f[2,1], title = "Slice at y = 0", yautolimitmargin = (0, 0), xlabel="x", ylabel="z")
@@ -459,7 +457,7 @@ function plot3DPotSlice(pot,filename,limits,projectionRadius;detailed=nothing)
 
     zlims!(ax1,limits)
 
-    save(string("plots/",filename),f,size=(2560,2560),backend=GLMakie)
+    save(string("plots/",filename),f,size=(2560,2560),backend=GLMakie,px_per_unit=2)
 end
 
 function basinPack(basin;interpolate=nothing,ArrayType=nothing,interpolationResolution = 100)
@@ -487,12 +485,12 @@ function basinPack(basin;interpolate=nothing,ArrayType=nothing,interpolationReso
     return basin, points, xs, ys, zs
 end
 
-function compareBasins(packs,titles,isoval,filename; voxels=false, isorange=1)
-    f = Figure(size=(2560,2560), fontsize=40)
-    ax1 = Axis3(f[1,1], title = titles[1], xlabel="x", ylabel="y", zlabel="z")
-    ax2 = Axis3(f[1,2], title = titles[2], xlabel="x", ylabel="y", zlabel="z")
-    ax3 = Axis3(f[2,1], title = titles[3], xlabel="x", ylabel="z", zlabel="z")
-    ax4 = Axis3(f[2,2], title = titles[4], xlabel="y", ylabel="z", zlabel="z")
+function compareBasins(packs,titles,isovals,filename; voxels=false, isorange=1, colors = Makie.wong_colors(), kwargs...)
+    f = Figure(size=(1280,1280), fontsize=20)
+    ax1 = Axis3(f[1,1], title = titles[1], xlabel="x", ylabel="y", zlabel="z", kwargs...)
+    ax2 = Axis3(f[1,2], title = titles[2], xlabel="x", ylabel="y", zlabel="z", kwargs...)
+    ax3 = Axis3(f[2,1], title = titles[3], xlabel="x", ylabel="z", zlabel="z", kwargs...)
+    ax4 = Axis3(f[2,2], title = titles[4], xlabel="y", ylabel="z", zlabel="z", kwargs...)
     axes = [ax1,ax2,ax3,ax4]
 
     for (j,ax) in enumerate(axes)
@@ -506,17 +504,52 @@ function compareBasins(packs,titles,isoval,filename; voxels=false, isorange=1)
         ylimits = extrema(ys)
         zlimits = extrema(zs)
 
-        for (i,m) in enumerate(basin.minima)
+        for (i,m) in enumerate(sort(basin.minima, by= x-> x.energy, rev = true))
             if voxels
-                basinPoints = [basin.gridpoints[p][2] == m ? p.energy : NaN for p in points]
-                isOutside = @lift x -> !(x <= $isoval)
-                voxels!(ax,xlimits,ylimits,zlimits,basinPoints, colormap = fill(Makie.wong_colors()[mod1(i,7)],100),is_air = isOutside,colorrange=(-1,1))
+                basinPoints = [basin.gridpoints[p][2] == m && p.energy <= isoval + isorange ? p.energy : NaN for p in points]
+                voxels!(ax,xlimits,ylimits,zlimits,basinPoints, colormap = fill(colors[mod1(i,length(colors))],100),colorrange=(-1,1))
             else 
                 basinPoints = [basin.gridpoints[p][2] == m ? p.energy : NaN for p in points]
-                volume!(ax,xlimits,ylimits,zlimits,basinPoints , algorithm = :iso, isovalue = isoval, isorange = isorange ,colormap = fill(Makie.wong_colors()[mod1(i,7)],100) , interpolate = true)
+                volume!(ax,xlimits,ylimits,zlimits,basinPoints , algorithm = :iso, isovalue = isovals[j], isorange = isorange ,colormap = fill(colors[mod1(i,length(colors))],100) , interpolate = true)
             end
         end
     end
+    resize_to_layout!(f)
+    save(string("plots/",filename),f,backend=GLMakie,px_per_unit=2)
+end
 
-    save(string("plots/",filename),f,size=(2560,2560),backend=GLMakie)
+function compareCoreSets(packs,titles,epsilons,filename; voxels=false, colors = Makie.wong_colors(), kwargs...)
+    f = Figure(size=(2560,2560), fontsize=20)
+    ax1 = Axis3(f[1,1], title = titles[1], xlabel="x", ylabel="y", zlabel="z", kwargs...)
+    ax4 = Axis3(f[2,2], title = titles[4], xlabel="y", ylabel="z", zlabel="z", kwargs...)
+    ax2 = Axis3(f[1,2], title = titles[2], xlabel="x", ylabel="y", zlabel="z", kwargs...)
+    ax3 = Axis3(f[2,1], title = titles[3], xlabel="x", ylabel="z", zlabel="z", kwargs...)
+
+    axes = [ax1,ax2,ax3,ax4]
+
+    for (j,ax) in enumerate(axes)
+        basin = packs[j][1]
+        points = packs[j][2]
+        xs = packs[j][3]
+        ys = packs[j][4]
+        zs = packs[j][5]
+
+        xlimits = extrema(xs)
+        ylimits = extrema(ys)
+        zlimits = extrema(zs)
+
+        for (i,m) in enumerate(sort(basin.minima, by= x-> x.energy, rev = true))
+            isoval = m.energy
+            isorange = epsilons[j]
+            if voxels
+                basinPoints = [basin.gridpoints[p][2] == m && p.energy <= isoval + isorange ? p.energy : NaN for p in points]
+                voxels!(ax,xlimits,ylimits,zlimits,basinPoints, colormap = fill(colors[mod1(i,length(colors))],100),colorrange=(-1,1))
+            else 
+                basinPoints = [basin.gridpoints[p][2] == m ? p.energy : NaN for p in points]
+                volume!(ax,xlimits,ylimits,zlimits,basinPoints , algorithm = :iso, isovalue = isoval, isorange = isorange ,colormap = fill(colors[mod1(i,length(colors))],100) , interpolate = true)
+            end
+        end
+    end
+    resize_to_layout!(f)
+    save(string("plots/",filename),f,backend=GLMakie,px_per_unit=2)
 end
