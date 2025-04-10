@@ -10,11 +10,11 @@ To reproduce the results presented in the thesis the following steps should be s
 <pre>
 using Pkg
 Pkg.instantiate()
-<pre>
+</pre>
 3. Execute the script to generate all relevant plots
 <pre>
 include("../bin/run.jl")
-<pre>
+</pre>
 
 ### Generating required data from molgri
 
@@ -23,7 +23,7 @@ The pthon environment in which `grid.py` was run can be set-up in the following 
 1. Navigate to the root folder of the project directory and install the dependencies using `pip`:
 <pre>
 pip install -r requirements.txt
-<pre>
+</pre>
 
 2. Execute `grid.py` located in the bin directory.
 
