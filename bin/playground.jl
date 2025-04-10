@@ -358,32 +358,6 @@ fLJ4 = plotBasinsIsosurface(diagSphericalBasinB,energyrange=(-6,-1),interpolate=
 #rts = roots(x -> ForwardDiff.gradient(LJpotential,x),[interval(-4,4),interval(-4,4),interval(-4,4)],abstol=1e-5)
 #tstpot(x) = 4 * 1 * ((2/(x[1]^2+x[2]^2+x[3]^2))^12 - (2/(x[1]^2+x[2]^2+x[3]^2))^6)
 
-xs = -2:1:2
-ys = -1:0.5:1
-normal = [simplepot(x,y) for x in xs, y in ys]
-rot = [rotated2DPot(simplepot,x,y,π/4) for x in xs, y in ys]
- 
-
-f7 = Figure(size=(2560,1440), fontsize=40)
-ax8 = Axis(f7[1,1], title = L"f(x,y) = x^2 + 10 \cdot y^2 ", yautolimitmargin = (0, 0),xlabel="x",ylabel="y")
-ax7 = Axis(f7[1,2], title = L"f(x,y) = x^2 + 10 \cdot y^2,\text{ rotated by }\frac{π}{4} ", yautolimitmargin = (0, 0),xlabel="x",ylabel="y")
-
-
-heatmap!(ax7,xs,ys,rot,colormap=:lipari)
-for x in xs, y in ys
-    data = rotated2DPot(simplepot,x,y,π/4)
-    txtcolor = data < 11 ? :white : :black
-    text!(ax7, "$(round(data, sigdigits = 3))", position = (x, y),
-        color = txtcolor, align = (:center, :center),space=:data)
-end
-
-heatmap!(ax8,xs,ys,normal,colormap=:lipari)
-for x in xs, y in ys
-    data = simplepot(x,y)
-    txtcolor = data < 11 ? :white : :black
-    text!(ax8, "$(round(data, sigdigits = 3))", position = (x, y),
-        color = txtcolor, align = (:center, :center),space=:data)
-end
 
 f8 = Figure(size=(2560,2560), fontsize=40)
 ax2 = Axis3(f8[1,2], title = string("Projection on sphere (r = ",round(3.0,sigdigits=3),")"), yautolimitmargin = (0, 0), xlabel="x", ylabel="y")
@@ -399,3 +373,36 @@ y = [sinpi(φ)*sinpi(θ) for θ in θ, φ in φ] .* 3
 z = [cospi(θ) for θ in θ, φ in φ] .* 3
 colors = ringpot3D.(x,y,z)
 surface(x,y,z,color = colors)
+
+######### Reading rate Matrix
+rate_matrix = npzread(string("data/noRotGridSparse2/","rate_matrix.npy"))
+replace!(rate_matrix,Inf=>prevfloat(Inf),-Inf=>-1* prevfloat(Inf))
+
+
+decomposed = eigen(rate_matrix)
+
+
+f9 = Figure(size=(2560,2560), fontsize=40)
+axE = Axis3(f9[1,1], title ="Eigenvector" , xlabel="x", ylabel="y", zlabel="z")
+
+eigenvals = decomposed.values[1:end] 
+its = -0.1 ./ eigenvals
+
+largest = decomposed.vectors[1:5,:]
+
+evs = npzread(string("data/noRotGridSparse2/","eigenvectors.npy"))
+evals = npzread(string("data/noRotGridSparse2/","eigenvalues.npy"))
+
+evs2 = abs.(decomposed.vectors[:,end-6:end])
+
+eigenvecs = [[e > sort(ev)[end-12] ? 1 : 0 for e in abs.(ev)] for ev in eachcol(evs2)]
+
+
+evpot =  parseMolgriGrid("data/noRotGridSparse2/",(x,y,z) -> 1,"Lennard-Jones Cluster on Molgri-imported grid")
+
+evpoints = [[e == 1 ? evpot.points[i].translation : nothing for (i,e) in enumerate(ev)] for ev in eigenvecs]
+evpos = Array{Cartesian3D}[filter(x -> !isnothing(x), evs) for evs in evpoints]
+
+for ev in evpos[1:4]
+    meshscatter!(axE,ev)
+end
