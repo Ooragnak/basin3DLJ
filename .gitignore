@@ -7,3 +7,4 @@ venv/
 .venv/
 .vscode/
 .history/
+**/rate_matrix.npy
