@@ -18,7 +18,7 @@ include("../bin/run.jl")
 
 ### Generating required data from molgri
 
-While the molgri-generated grid data required for the reproduction of all results presented in the thesis is included in the repository it may be desirable to experiment with alternative grids which will have to be generated. 
+While the [molgri](https://github.com/bkellerlab/molecularRotationalGrids)-generated grid data required for the reproduction of all results presented in the thesis is included in the repository it may be desirable to experiment with alternative grids which will have to be generated. 
 The pthon environment in which `grid.py` was run can be set-up in the following way:
 1. Navigate to the root folder of the project directory and install the dependencies using `pip`:
 <pre>
