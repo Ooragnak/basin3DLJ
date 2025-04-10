@@ -21,6 +21,43 @@ catch
     end
 end
 
+################
+# Neighborhood effects
+################
+xsN = -2:1:2
+ysN = -1:0.5:1
+normalN = [simplepot(x,y) for x in xsN, y in ysN]
+rotN = [rotated2DPot(simplepot,x,y,π/4) for x in xsN, y in ysN]
+
+fNeighbor = Figure(size=(2560,1440), fontsize=40)
+axN1 = Axis(fNeighbor[1,2], title = L"f(x,y) = x^2 + 10 \cdot y^2,\text{ rotated by }\frac{π}{4}\text{ around the origin}", yautolimitmargin = (0, 0),xlabel="x",ylabel="y")
+axN2 = Axis(fNeighbor[1,1], title = L"f(x,y) = x^2 + 10 \cdot y^2 ", yautolimitmargin = (0, 0),xlabel="x",ylabel="y")
+
+
+heatmap!(axN1,xs,ys,rotN,colormap=:lipari)
+for x in xs, y in ys
+    data = rotated2DPot(simplepot,x,y,π/4)
+    if x == -1.0 && y == 1.0
+        txtcolor =:red
+        text!(axN1, "$(round(data, sigdigits = 3))", position = (x, y),
+            color = txtcolor, align = (:center, :center),space=:data,fontsize = 60)
+    else
+        txtcolor = data < 11 ? :white : :black
+        text!(axN1, "$(round(data, sigdigits = 3))", position = (x, y),
+            color = txtcolor, align = (:center, :center),space=:data)
+    end
+end
+
+heatmap!(axN2,xs,ys,normalN,colormap=:lipari)
+for x in xs, y in ys
+    data = simplepot(x,y)
+    txtcolor = data < 11 ? :white : :black
+    text!(axN2, "$(round(data, sigdigits = 3))", position = (x, y),
+        color = txtcolor, align = (:center, :center),space=:data)
+end
+
+save(string("plots/","compareNeighborhood.pdf"),fNeighbor,backend=CairoMakie)
+
 
 ################
 # 2D Cartesian Grids 
@@ -44,7 +81,7 @@ cartesian1000_mbpotpot_basin = gradDescent(cartesian1000_mbpotpot_grid)
 
 
 
-plot2DCartesianWatersheds(cartesian500_mbpotpot_basin,"Basins of attraction", "Müller-Brown potential", "cartesian500.pdf",L"V(x,y)",lvl=range(-150,75,50))
+plot2DCartesianWatersheds(cartesian500_mbpotpot_basin,"Basins of attraction", "Müller-Brown potential", "cartesian500.png",L"V(x,y)",lvl=range(-150,75,50))
 
 plot2DCartesianWatersheds(cartesian100_mbpotpot_basin,"Basins of attraction", "Müller-Brown potential", "cartesianMB100.pdf",L"V(x,y)",lvl=range(-150,75,50), msize = 8)
 
@@ -62,7 +99,7 @@ polar300_ringpot_grid = makePolarGrid(range(0.1,5,300),300,ringpot,"Ring Potenti
 
 polar300_ringpot_basin = gradDescent(polar300_ringpot_grid)
 
-plot2DPolarwatersheds(polar300_ringpot_basin,0.5,"Basins of attraction", "Polar model potential", "Core-sets(ϵ = 0.5)", "polarRingpot300.pdf",L"V(r,\theta)")
+plot2DPolarwatersheds(polar300_ringpot_basin,0.5,"Basins of attraction", "Polar model potential", "Core-sets(ϵ = 0.5)", "polarRingpot300.png",L"V(r,\theta)")
 
 polar100_ringpot_grid = makePolarGrid(range(0.1,5,50),100,ringpot,"Ring Potential",nudge = true)
 
@@ -74,7 +111,7 @@ plot2DPolarwatersheds(polar100_ringpot_basin,0.5,"Basins of attraction", "Polar 
 # 3D Modified Ring Potential
 ################
 
-plot3DPotSlice(ringpot3D,"ringpotProjection.png",(-4,4),3.0)
+plot3DPotSlice(ringpot3D,"ringpotProjection.png",(-4,4),3.0,colorrange=[nothing,(-15,60),(-15,60),(-15,60)])
 plot3DPotSlice(ringpot3DAlt,"ringpotAltProjection.png",(-4,4),3.0)
 
 molgri150x50_ringpot3D_grid = parseMolgriGrid("data/noRotGrid/",ringpot3D,"Ringpot3D on Molgri-imported grid 150x50")
@@ -113,7 +150,7 @@ packs = [molgri150x50_ringpot3D_packed,molgri1000x50_ringpot3D_packed,cartesian2
 titles = ["Spherical 7500", "Spherical 50000", "Cartesian 8000",  "Cartesian 1000000"]
 
 packs2 = [molgri80x20_ringpot3D_packed,molgri80x20_ringpot3D_diagonal_packed,molgri150x50_ringpot3D_diagonal_packed,molgri1000x50_ringpot3D_diagonal_packed]
-titles2 = ["Spherical 1600", "Spherical 1600 (diag)", "Spherical 7500 (diag)",  "Spherical 1000000 (diag)"]
+titles2 = ["Spherical 1600", "Spherical 1600 (diag)", "Spherical 7500 (diag)",  "Spherical 50000 (diag)"]
 
 compareBasins(packs, titles, fill(-2.5,4), "compareRingpot3D.png")
 compareCoreSets(packs, titles, fill(0.5,4), "compareCoreSetsRingpot3D.png")
@@ -182,7 +219,7 @@ save(string("plots/","LJClusterParticles.png"),f3d_LJ,backend=GLMakie,px_per_uni
 
 molgri1000x50_LJCluster_diagonal_grid = getDiagonalNeighbors(parseMolgriGrid("data/noRotGridFine2/",(x,y,z) -> potential(ABABcluster,x,y,z),"Lennard-Jones Cluster on Molgri-imported grid"),true)
 molgri1000x50_LJCluster_diagonal_basin = gradDescent(molgri1000x50_LJCluster_diagonal_grid)
-molgri1000x50_LJCluster_diagonal_basin = basinPack(molgri1000x50_LJCluster_diagonal_basin,interpolate=[(-5,5),(-5,5),(-5,5)],ArrayType=ARRAYTYPE,interpolationResolution=120)
+molgri1000x50_LJCluster_diagonal_packed = basinPack(molgri1000x50_LJCluster_diagonal_basin,interpolate=[(-5,5),(-5,5),(-5,5)],ArrayType=ARRAYTYPE,interpolationResolution=120)
 
 molgri150x50_LJCluster_diagonal_grid = getDiagonalNeighbors(parseMolgriGrid("data/noRotGrid/",(x,y,z) -> potential(ABABcluster,x,y,z),"Lennard-Jones Cluster on Molgri-imported grid"),true)
 molgri150x50_LJCluster_diagonal_basin = gradDescent(molgri150x50_LJCluster_diagonal_grid)
@@ -196,14 +233,14 @@ cartesian100x100x100_LJCluster_grid  = makeCartesianGrid(range(-5.1,5,100),range
 cartesian100x100x100_LJCluster_basin = gradDescent(cartesian100x100x100_LJCluster_grid)
 cartesian100x100x100_LJCluster_packed = basinPack(cartesian100x100x100_LJCluster_basin)
 
-packsLJ = [molgri150x50_LJCluster_diagonal_packed,molgri1000x50_LJCluster_diagonal_basin,cartesian20x20x20_LJCluster_packed,cartesian100x100x100_LJCluster_packed]
+packsLJ = [molgri150x50_LJCluster_diagonal_packed,molgri1000x50_LJCluster_diagonal_packed,cartesian20x20x20_LJCluster_packed,cartesian100x100x100_LJCluster_packed]
 titlesLJ = ["Spherical 7500", "Spherical 50000", "Cartesian 8000",  "Cartesian 1000000"]
 
 compareCoreSets(packsLJ, titlesLJ, fill(0.5,4), "compareCoreSetsLJ.png")
 
 cLJ = vcat(lipari(20)[12],[RGBf(x, x, x) for x in rand(collect((24:200) ./ 255),40)])
 
-packsLJ2 = [molgri1000x50_LJCluster_diagonal_basin,molgri1000x50_LJCluster_diagonal_basin,molgri1000x50_LJCluster_diagonal_basin,molgri1000x50_LJCluster_diagonal_basin]
+packsLJ2 = [molgri1000x50_LJCluster_diagonal_packed,molgri1000x50_LJCluster_diagonal_packed,molgri1000x50_LJCluster_diagonal_packed,molgri1000x50_LJCluster_diagonal_packed]
 titlesLJ2 = ["Isovalue = -3.2", "Isovalue = -2.4", "Isovalue = -1.6",  "Isovalue = -0.8"]
 
 compareBasins(packsLJ2, titlesLJ2, [-3.2, -2.4, -1.6, -0.8], "compareBasinLJ_Spherical.png",colors=cLJ,azimuth=1.15π,reversed=true,voxels=true,isorange=0.01)
@@ -213,3 +250,77 @@ titlesLJ3 = ["Isovalue = -3.2", "Isovalue = -2.4", "Isovalue = -1.6",  "Isovalue
 
 compareBasins(packsLJ3, titlesLJ3, [-3.2, -2.4, -1.6, -0.8], "compareBasinLJ_Cartesian.png",colors=cLJ,azimuth=1.15π,reversed=true,voxels=true,isorange=0.01)
 
+csSpherical = sort(molgri1000x50_LJCluster_diagonal_basin.minima,by=x->x.energy)
+csCartesian = sort(cartesian100x100x100_LJCluster_basin.minima,by=x->x.energy)
+
+occurs = []
+
+csA = copy(csSpherical)
+csB = copy(csCartesian)
+
+while !isempty(csA) && !isempty(csB)
+    dist = minimum(vec([distance(a,b) for a in csA, b in csB]))
+    mindist = argmin(vec([distance(a,b) for a in csA, b in csB]))
+    a_ind, b_ind = Tuple(CartesianIndices((length(csA),length(csB)))[mindist])
+    a = findfirst(csSpherical .== Ref(csA[a_ind]))
+    b = findfirst(csCartesian .== Ref(csB[b_ind]))
+    if dist < 0.25
+        push!(occurs,(a,b))
+    else
+        push!(occurs,(0,b))
+        push!(occurs,(a,0))
+    end
+    deleteat!(csA,a_ind)
+    deleteat!(csB,b_ind)
+end
+
+sx, sy, sz, se, sn= [], [], [], [], []
+cx, cy, cz, ce, cn= [], [], [], [], []
+
+for elem in occurs
+    a, b = elem
+    if b == 0
+        push!(sx,csSpherical[a].translation.x)
+        push!(sy,csSpherical[a].translation.y)
+        push!(sz,csSpherical[a].translation.z)
+        push!(se,csSpherical[a].energy)
+        push!(sn,getBasinSize(molgri1000x50_LJCluster_diagonal_basin, csSpherical[a]))
+        push!(cx,nothing)
+        push!(cy,nothing)
+        push!(cz,nothing)
+        push!(ce,nothing)
+        push!(cn,nothing)
+    elseif a == 0
+        push!(cx,csCartesian[b].translation.x)
+        push!(cy,csCartesian[b].translation.y)
+        push!(cz,csCartesian[b].translation.z)
+        push!(ce,csCartesian[b].energy)
+        push!(cn,getBasinSize(cartesian100x100x100_LJCluster_basin, csCartesian[b]))
+        push!(sx,nothing)
+        push!(sy,nothing)
+        push!(sz,nothing)
+        push!(se,nothing)
+        push!(sn,nothing)
+    else
+        push!(sx,csSpherical[a].translation.x)
+        push!(sy,csSpherical[a].translation.y)
+        push!(sz,csSpherical[a].translation.z)
+        push!(se,csSpherical[a].energy)
+        push!(sn,getBasinSize(molgri1000x50_LJCluster_diagonal_basin, csSpherical[a]))
+        push!(cx,csCartesian[b].translation.x)
+        push!(cy,csCartesian[b].translation.y)
+        push!(cz,csCartesian[b].translation.z)
+        push!(ce,csCartesian[b].energy)
+        push!(cn,getBasinSize(cartesian100x100x100_LJCluster_basin, csCartesian[b]))
+    end
+end
+
+
+sn = replace(normalize(replace(sn,nothing=>0.0)) .* 100, 0.0=>nothing)
+cn = replace(normalize(replace(cn,nothing=>0.0)) .* 100, 0.0=>nothing)
+
+coreSets = [se, ce, sn, cn, sx, sy, sz, cx, cy, cz]
+perm = sortperm(min.(replace(se,nothing=>Inf),replace(ce,nothing=>Inf)))
+coreSetsSorted = [x[perm] for x in coreSets]
+rs = toLaTeX(coreSetsSorted)
+print(rs)
