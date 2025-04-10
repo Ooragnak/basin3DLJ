@@ -310,7 +310,7 @@ function compare2DCartesianWatersheds(basins,titles,filename;lvl = 75, msizes = 
 
     end
 
-    save(string("plots/",filename),f,backend=CairoMakie)
+    save(string("plots/",filename),f,backend=CairoMakie,px_per_unit=1)
 end
 
 function compare2DCartesianCoreSets(basins,titles,filename;lvl = 75, epsilons = fill(1,4), msize = 8)
@@ -418,10 +418,10 @@ function plot3DPotSlice(pot,filename,limits,projectionRadius;detailed=nothing,co
     z = [cospi(θ) for θ in θ, φ in φ] .* projectionRadius
     colors = pot.(x,y,z)
 
-    if isnothing(colorrange)
+    if isnothing(colorrange) || isnothing(colorrange[1])
         p1 = surface!(ax1,x,y,z,color = colors, colormap = :lipari)
     else
-        p1 = surface!(ax1,x,y,z,color = colors, colormap = :lipari, colorrange = colorrange)
+        p1 = surface!(ax1,x,y,z,color = colors, colormap = :lipari, colorrange = colorrange[1])
     end
 
     xs = range(limits...,1000)
@@ -432,19 +432,23 @@ function plot3DPotSlice(pot,filename,limits,projectionRadius;detailed=nothing,co
     xz = [pot(x,0,z) for x in xs, z in zs]
     yz = [pot(0,y,z) for y in ys, z in zs]
 
-    if isnothing(colorrange)
+    if isnothing(colorrange) || isnothing(colorrange[2])
         p2 = heatmap!(ax2,xs,ys,xy, colormap = :lipari)
+    else
+        p2 = heatmap!(ax2,xs,ys,xy, colormap = :lipari, colorrange = colorrange[2])
+    end
+
+    if isnothing(colorrange) || isnothing(colorrange[3])
         p3 = heatmap!(ax3,xs,zs,xz, colormap = :lipari)
     else
-        p2 = heatmap!(ax2,xs,ys,xy, colormap = :lipari, colorrange = colorrange)
-        p3 = heatmap!(ax3,xs,zs,xz, colormap = :lipari, colorrange = colorrange)
+        p3 = heatmap!(ax3,xs,zs,xz, colormap = :lipari, colorrange = colorrange[3])
     end
 
     if isnothing(detailed)
-        if isnothing(colorrange)
+        if isnothing(colorrange) || isnothing(colorrange[4])
             p4 = heatmap!(ax4,ys,zs,yz, colormap = :lipari)
         else
-            p4 = heatmap!(ax4,ys,zs,yz, colormap = :lipari, colorrange = colorrange)
+            p4 = heatmap!(ax4,ys,zs,yz, colormap = :lipari, colorrange = colorrange[4])
         end
         xlims!(ax4,limits)
         ylims!(ax4,limits)
