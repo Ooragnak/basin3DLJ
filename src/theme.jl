@@ -41,10 +41,48 @@ simpleLaTeX() = Theme(
     ),
 )
 
+inch = 96
+pt = 4/3
+cm = inch / 2.54
 
 set_theme!(merge(simpleLaTeX(),theme_latexfonts()))
 
 # Define discrete color schemes
 function lipari(n::Int)
     return get(ColorSchemes.lipari,range(0.05,0.95,n))
+end
+
+function toLaTeX(tables)
+    lens = length.(tables)
+    len = maximum(lens)
+    table = ""
+    for row in 1:1:len
+        for col in 1:1:length(tables)
+            if col == 1 && row <= lens[col]
+                table *= prettyPrint(tables[col][row]) 
+            elseif row <= lens[col]
+                table *= " & " * prettyPrint(tables[col][row])  
+            else
+                table *= " & " 
+            end
+        end
+        table *= " \\\\ \\hline \n"
+    end
+    return table
+end
+
+function prettyPrint(x::Int)
+    string(x)
+end
+
+function prettyPrint(x)
+    string(x)
+end
+
+function prettyPrint(x::Nothing)
+    ""
+end
+
+function prettyPrint(x::Number)
+    string(round(round(x+x/1e10,sigdigits=5),digits=4))
 end
