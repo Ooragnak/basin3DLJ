@@ -18,8 +18,9 @@ def makeGrid(prefix: str, b_grid_name: str, o_grid_name: str, tgrid, factor=2, p
     #sparse.save_npz(prefix + "adjacency_array", grid.get_full_adjacency())
     sparse.save_npz(prefix + "adjacency_only_position",grid.get_full_adjacency(only_position=True))
     #sparse.save_npz(prefix + "adjacency_only_orientation",grid.get_full_adjacency(only_orientation=True))
-    #sparse.save_npz(prefix + "borders_array",grid.get_full_borders())
+    sparse.save_npz(prefix + "borders_array",grid.get_full_borders())
     sparse.save_npz(prefix + "distances_array",grid.get_full_distances())
+    np.save(prefix + "volumes_array",grid.get_total_volumes())
     np.save(prefix + "_fullgrid", grid.get_full_grid_as_array())
 
 
@@ -30,7 +31,7 @@ makeGrid("data/noRotGridFine/","zero","ico_500",[0.1,5,100])
 makeGrid("data/noRotGridAlt/","zero","ico_160",[0.01,5,20])
 makeGrid("data/noRotGridFine2/","zero","ico_1000",[0.5,4,50])
 makeGrid("data/noRotGridSparse/","zero","ico_80",[1,5,20])
-
+makeGrid("data/noRotGridSparse2/","zero","ico_80",[1.5,5,20],overwrite=True)
 
 
 
