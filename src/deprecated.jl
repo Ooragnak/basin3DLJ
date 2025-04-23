@@ -122,3 +122,41 @@ function interpolateSliceAlt(grid::PointGrid{<: Point{T}},xs,ys,z) where {T <: P
     end
     return interpolated
 end
+
+
+# MODIFIED POTENTIAL - PROBABLY DEPRECATED
+#
+#molgri150x50_ringpot3DAlt_grid = parseMolgriGrid("data/noRotGrid/",ringpot3DAlt,"ringpot3DAlt on Molgri-imported grid 150x50")
+#molgri150x50_ringpot3DAlt_basin = gradDescent(molgri150x50_ringpot3DAlt_grid)
+#molgri150x50_ringpot3DAlt_packed = basinPack(molgri150x50_ringpot3DAlt_basin,interpolate=[(-5,5),(-5,5),(-5,5)],ArrayType=ARRAYTYPE,interpolationResolution=250)
+#
+#molgri150x50_ringpot3DAlt_diagonal_grid = getDiagonalNeighbors(parseMolgriGrid("data/noRotGrid/",ringpot3DAlt,"ringpot3DAlt on Molgri-imported grid 150x50"),true)
+#molgri150x50_ringpot3DAlt_diagonal_basin = gradDescent(molgri150x50_ringpot3DAlt_diagonal_grid)
+#molgri150x50_ringpot3DAlt_diagonal_packed = basinPack(molgri150x50_ringpot3DAlt_diagonal_basin,interpolate=[(-5,5),(-5,5),(-5,5)],ArrayType=ARRAYTYPE,interpolationResolution=250)
+#
+#molgri1000x50_ringpot3DAlt_grid = parseMolgriGrid("data/noRotGridFine2/",ringpot3DAlt,"ringpot3DAlt on Molgri-imported grid 1000x50")
+#molgri1000x50_ringpot3DAlt_basin = gradDescent(molgri1000x50_ringpot3DAlt_grid)
+#molgri1000x50_ringpot3DAlt_packed = basinPack(molgri1000x50_ringpot3DAlt_basin,interpolate=[(-5,5),(-5,5),(-5,5)],ArrayType=ARRAYTYPE,interpolationResolution=100)
+#
+#molgri1000x50_ringpot3DAlt_diagonal_grid = parseMolgriGrid("data/noRotGridFine2/",ringpot3DAlt,"ringpot3DAlt on Molgri-imported grid 1000x50")
+#molgri1000x50_ringpot3DAlt_diagonal_basin = gradDescent(molgri1000x50_ringpot3DAlt_diagonal_grid)
+#molgri1000x50_ringpot3DAlt_diagonal_packed = basinPack(molgri1000x50_ringpot3DAlt_diagonal_basin,interpolate=[(-5,5),(-5,5),(-5,5)],ArrayType=ARRAYTYPE,interpolationResolution=100)
+#
+#cartesian20x20x20_ringpot3DAlt_grid  = makeCartesianGrid(range(-5.01,5,20),range(-5.01,5,20),range(-5.01,5,20),ringpot3DAlt,"ringpot3DAlt on Cartesian grid 20x20x20",diagonal=true)
+#cartesian20x20x20_ringpot3DAlt_basin = gradDescent(cartesian20x20x20_ringpot3DAlt_grid)
+#cartesian20x20x20_ringpot3DAlt_packed = basinPack(cartesian20x20x20_ringpot3DAlt_basin)
+#
+#cartesian100x100x100_ringpot3DAlt_grid  = makeCartesianGrid(range(-5.1,5,100),range(-5.1,5,100),range(-5.1,5,100),ringpot3DAlt,"ringpot3DAlt on Cartesian grid 100x100x100",diagonal=true)
+#cartesian100x100x100_ringpot3DAlt_basin = gradDescent(cartesian100x100x100_ringpot3DAlt_grid)
+#cartesian100x100x100_ringpot3DAlt_packed = basinPack(cartesian100x100x100_ringpot3DAlt_basin)
+#
+#packsAlt = [molgri150x50_ringpot3DAlt_packed,molgri1000x50_ringpot3DAlt_packed,cartesian20x20x20_ringpot3DAlt_packed,cartesian100x100x100_ringpot3DAlt_packed]
+#titlesAlt = ["Molgri 7500", "Molgri 50000", "Cartesian 8000",  "Cartesian 1000000"]
+#
+#packsAlt2 = [molgri150x50_ringpot3DAlt_diagonal_packed,molgri1000x50_ringpot3DAlt_diagonal_packed,cartesian20x20x20_ringpot3DAlt_packed,cartesian100x100x100_ringpot3DAlt_packed]
+#titlesAlt2 = ["Molgri (diagonal) 7500", "Molgri (diagonal) 50000", "Cartesian 8000",  "Cartesian 1000000"]
+#
+#compareBasins(packsAlt, titlesAlt, fill(-3,4), "compareringpot3DAlt.png")
+#compareCoreSets(packsAlt, titlesAlt, fill(1.0,4), "compareCoreSetsRingpot3DAlt.png")
+#compareBasins(packsAlt2, titlesAlt2, fill(-3,4), "compareringpot3DAlt_diag.png", voxels=false)
+#compareCoreSets(packsAlt2, titlesAlt2, fill(1.0,4), "compareCoreSetsRingpot3DAlt_diag.png", voxels=true)
