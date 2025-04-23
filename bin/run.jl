@@ -34,8 +34,8 @@ axN1 = Axis(fNeighbor[1,2], title = L"f(x,y) = x^2 + 10 \cdot y^2,\text{ rotated
 axN2 = Axis(fNeighbor[1,1], title = L"f(x,y) = x^2 + 10 \cdot y^2 ", yautolimitmargin = (0, 0),xlabel="x",ylabel="y")
 
 
-heatmap!(axN1,xs,ys,rotN,colormap=:lipari)
-for x in xs, y in ys
+heatmap!(axN1,xsN,ysN,rotN,colormap=:lipari)
+for x in xsN, y in ysN
     data = rotated2DPot(simplepot,x,y,π/4)
     if x == -1.0 && y == 1.0
         txtcolor =:red
@@ -48,8 +48,8 @@ for x in xs, y in ys
     end
 end
 
-heatmap!(axN2,xs,ys,normalN,colormap=:lipari)
-for x in xs, y in ys
+heatmap!(axN2,xsN,ysN,normalN,colormap=:lipari)
+for x in xsN, y in ysN
     data = simplepot(x,y)
     txtcolor = data < 11 ? :white : :black
     text!(axN2, "$(round(data, sigdigits = 3))", position = (x, y),
@@ -204,7 +204,7 @@ compareBasins(packs2, titles2, fill(-2.5,4), "compareRingpot3D_diagA.png")
 defaultCluster = vcat(fill((1,2*2^(-1/6)),12),nothing)
 ABABcluster = generateCluster(1,defaultCluster)
 
-plot3DPotSlice((x,y,z) -> potential(ABABcluster,x,y,z),"LJClusterProjection.png",(-4,4),3.0,colorrange=(-6,2),azimuth=0.1π,xreversed=true)
+plot3DPotSlice((x,y,z) -> potential(ABABcluster,x,y,z),"LJClusterProjection.png",(-4,4),3.0,colorrange=fill((-6,2),4),azimuth=0.1π,xreversed=true)
 
 #Plot LJ particle cluster
 f3d_LJ = Figure(size=(1280,1280), fontsize=40)
