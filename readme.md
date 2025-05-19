@@ -6,6 +6,7 @@ All code related to the bachelor thesis "Basins of attraction and core-sets for 
 To reproduce the results presented in the thesis the following steps should be sufficient:
 
 1. Open a Julia (>v1.11) REPL in the project root directory
+
 Confirm this by checking that the output matches this directory:
 <pre>
 pwd()
